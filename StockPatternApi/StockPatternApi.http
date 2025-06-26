@@ -1,0 +1,6 @@
+@StockPatternApi_HostAddress = http://localhost:5003
+
+GET {{StockPatternApi_HostAddress}}/stockcontroller/
+Accept: application/json
+
+###

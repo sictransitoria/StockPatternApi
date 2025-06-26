@@ -1,0 +1,8 @@
+# .gitignore files
+StockPatternApi/Models/ApiKeys.cs
+appsettings.json
+appsettings.Development.json
+.vs
+.vscode
+obj
+bin
