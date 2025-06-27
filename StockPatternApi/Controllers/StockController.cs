@@ -10,7 +10,7 @@ namespace StockPatternApi.Controllers
     [Route("api/[controller]")]
     public class StockController : ControllerBase
     {
-        private readonly string API_KEY = ApiKeys.API_KEY;
+        private readonly string API_KEY = Keys.API_KEY;
         private readonly HttpClient _httpClient = new HttpClient();
 
         [HttpGet("getSetups")]
@@ -26,7 +26,7 @@ namespace StockPatternApi.Controllers
                     if (setups != null && setups.Any())
                     {
                         results.AddRange(setups.Select(s => new { Ticker = ticker, Setup = s }));
-                        //emailService.SendEmail(results);
+                        emailService.SendEmail(results);
                     }
                 }
 
@@ -41,7 +41,7 @@ namespace StockPatternApi.Controllers
             }
         }
 
-        private async Task<IReadOnlyList<StockDataModel>> GetHistoricalSafe(string ticker, DateTime startDate)
+        private async Task<IReadOnlyList<StockDataModel>> GetHistoricalData(string ticker, DateTime startDate)
         {
             for (int attempt = 0; attempt < 3; attempt++)
             {
@@ -93,7 +93,7 @@ namespace StockPatternApi.Controllers
                 _ => DateTime.Now.AddMonths(-6)
             };
 
-            var stockHistory = await GetHistoricalSafe(ticker, startDate);
+            var stockHistory = await GetHistoricalData(ticker, startDate);
 
             if (stockHistory == null || !stockHistory.Any())
                 throw new Exception($"No data returned for {ticker}. Possibly invalid symbol.");

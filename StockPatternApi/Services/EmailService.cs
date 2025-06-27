@@ -1,4 +1,5 @@
-﻿using System.Net.Mail;
+﻿using StockPatternApi.Models;
+using System.Net.Mail;
 using System.Text.Json;
 
 namespace StockPatternApi.Services
@@ -7,14 +8,18 @@ namespace StockPatternApi.Services
     {
         public void SendEmail(object tickerData)
         {
-            string fromEmail = "michael.oria@icloud.com";
-            string toEmail = "michael.oria@icertis.com";
-            string subject = "JSON Output";
-            string body = JsonSerializer.Serialize(tickerData, new JsonSerializerOptions { WriteIndented = true });
+            DateTime currentDate = DateTime.Now;
+            string formattedDate = currentDate.ToString("M/d/yyyy");
+            string fromEmail = Keys.EMAIL_FROM;
+            string toEmail = Keys.EMAIL_TO;
+            string subject = "Set Ups for " + formattedDate;
+            string body = JsonSerializer.Serialize(tickerData, new JsonSerializerOptions { 
+                WriteIndented = true 
+            });
 
-            using var smtpClient = new SmtpClient("smtp.mail.me.com", 587)
+            using var smtpClient = new SmtpClient(Keys.SMTP_SERVER, Keys.Port)
             {
-                Credentials = new System.Net.NetworkCredential(fromEmail, "APP_SPECIFIC_PASSWORD"),
+                Credentials = new System.Net.NetworkCredential(fromEmail, Keys.EMAIL_PASSWORD),
                 EnableSsl = true
             };
 
