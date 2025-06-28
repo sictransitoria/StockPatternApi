@@ -23,16 +23,16 @@ namespace StockPatternApi.Controllers
                 foreach (var ticker in NasdaqTickers.Tickers)
                 {
                     var setups = await DetectPattern(ticker.ToUpper(), period, lookback);
-                    if (setups != null && setups.Any())
+                    if (setups != null && setups.Count != 0)
                     {
                         results.AddRange(setups.Select(s => new { Ticker = ticker, Setup = s }));
-                        emailService.SendEmail(results);
                     }
                 }
 
                 if (NasdaqTickers.Tickers == null || !NasdaqTickers.Tickers.Any())
                     return BadRequest("At least one ticker is required.");
 
+                emailService.SendEmail(results);
                 return results.Any() ? Ok(results) : NotFound("No setups found for any ticker.");
             }
             catch (Exception ex)
@@ -114,7 +114,8 @@ namespace StockPatternApi.Controllers
                 data[i].Setup = i >= 50 && data[i].Trend && data[i].Wedge && data[i].DecVol;
             }
 
-            return data.Where(d => d.Setup).Select(d => new
+            var threeDaysAgo = DateTime.Now.AddDays(-3); // find only setups from the last 3 days
+            return data.Where(d => d.Setup && d.Date >= threeDaysAgo).Select(d => new
             {
                 d.Date,
                 d.Trend,

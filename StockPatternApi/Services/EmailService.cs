@@ -1,4 +1,5 @@
-﻿using StockPatternApi.Models;
+﻿using Microsoft.AspNetCore.Authentication;
+using StockPatternApi.Models;
 using System.Net.Mail;
 using System.Text.Json;
 
@@ -14,7 +15,8 @@ namespace StockPatternApi.Services
             string toEmail = Keys.EMAIL_TO;
             string subject = "Set Ups for " + formattedDate;
             string body = JsonSerializer.Serialize(tickerData, new JsonSerializerOptions { 
-                WriteIndented = true 
+                WriteIndented = true,
+                MaxDepth = 10
             });
 
             using var smtpClient = new SmtpClient(Keys.SMTP_SERVER, Keys.Port)
