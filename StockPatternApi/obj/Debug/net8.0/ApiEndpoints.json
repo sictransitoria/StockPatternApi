@@ -1,0 +1,23 @@
+[
+  {
+    "ContainingType": "StockPatternApi.Controllers.StockController",
+    "Method": "GetBatchSetups",
+    "RelativePath": "api/Stock/getSetups",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "tickers",
+        "Type": "System.String[]",
+        "IsRequired": false
+      },
+      {
+        "Name": "lookback",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  }
+]

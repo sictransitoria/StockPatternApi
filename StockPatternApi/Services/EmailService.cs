@@ -14,10 +14,10 @@ namespace StockPatternApi.Services
             string fromEmail = Keys.EMAIL_FROM;
             string toEmail = Keys.EMAIL_TO;
             string subject = "Set Ups for " + formattedDate;
-            string body = JsonSerializer.Serialize(tickerData, new JsonSerializerOptions { 
+            string body = JsonSerializer.Serialize(tickerData, new JsonSerializerOptions {
                 WriteIndented = true,
                 MaxDepth = 10
-            });
+             });
 
             using var smtpClient = new SmtpClient(Keys.SMTP_SERVER, Keys.Port)
             {

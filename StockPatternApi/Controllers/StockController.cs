@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
+using StockPatternApi.Data;
 using StockPatternApi.Models;
 using StockPatternApi.Services;
-using StockPatternApi.Data;
+using System.Text.Json;
 
 namespace StockPatternApi.Controllers
 {
@@ -11,33 +11,44 @@ namespace StockPatternApi.Controllers
     public class StockController : ControllerBase
     {
         private readonly string API_KEY = Keys.API_KEY;
-        private readonly HttpClient _httpClient = new HttpClient();
+        private readonly HttpClient httpClient = new HttpClient();
 
         [HttpGet("getSetups")]
-        public async Task<IActionResult> GetBatchSetups([FromQuery] string[] tickers, [FromQuery] string period = "6mo", [FromQuery] int lookback = 10)
+        public async Task<IActionResult> GetBatchSetups([FromQuery] string[] tickers, [FromQuery] int lookback = 10)
         {
             try
             {
                 var results = new List<object>();
                 var emailService = new EmailService();
-                foreach (var ticker in NasdaqTickers.Tickers)
+
+                var symbols = (tickers != null && tickers.Length != 0) ? tickers : NasdaqTickers.Tickers;
+
+                if (symbols == null || symbols.Length == 0)
                 {
-                    var setups = await DetectPattern(ticker.ToUpper(), period, lookback);
-                    if (setups != null && setups.Count != 0)
-                    {
-                        results.AddRange(setups.Select(s => new { Ticker = ticker, Setup = s }));
-                    }
+                    return BadRequest("At least one ticker is required.");
                 }
 
-                if (NasdaqTickers.Tickers == null || !NasdaqTickers.Tickers.Any())
-                    return BadRequest("At least one ticker is required.");
-
-                emailService.SendEmail(results);
-                return results.Any() ? Ok(results) : NotFound("No setups found for any ticker.");
+                foreach (var ticker in symbols)
+                {
+                    var setups = await DetectPattern(ticker.ToUpper(), lookback);
+                    if (setups != null && setups.Count != 0)
+                    {
+                        results.AddRange(setups.Select(s => new
+                        {
+                            Ticker = ticker,
+                            Setup = s
+                        }));
+                    }
+                }
+                if (results.Count > 0)
+                {
+                    emailService.SendEmail(results);
+                }
+                return results.Count != 0 ? Ok(results) : NotFound("As it turns out, there was no setups found for any ticker.");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error: {ex.Message}");
+                return StatusCode(500, $"There was an error returning results. Error Message: {ex.Message}");
             }
         }
 
@@ -48,11 +59,13 @@ namespace StockPatternApi.Controllers
                 try
                 {
                     var url = $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={API_KEY}";
-                    var response = await _httpClient.GetStringAsync(url);
+                    var response = await httpClient.GetStringAsync(url);
                     var json = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(response);
 
                     if (json == null || !json.ContainsKey("Time Series (Daily)"))
+                    {
                         throw new Exception("Invalid response from Alpha Vantage.");
+                    }
 
                     var timeSeries = json["Time Series (Daily)"].EnumerateObject()
                         .Select(x => new
@@ -83,50 +96,77 @@ namespace StockPatternApi.Controllers
             throw new Exception("Failed to fetch historical data after multiple attempts.");
         }
 
-        private async Task<List<object>> DetectPattern(string ticker, string period, int lookback)
+        private async Task<List<object>> DetectPattern(string ticker, int lookback)
         {
-            DateTime startDate = period switch
-            {
-                "1mo" => DateTime.Now.AddMonths(-1),
-                "3mo" => DateTime.Now.AddMonths(-3),
-                "6mo" => DateTime.Now.AddMonths(-6),
-                _ => DateTime.Now.AddMonths(-6)
-            };
+            const int buffer = 50;
+            const int volMaWindow = 10;
+            DateTime startDate = DateTime.UtcNow.AddDays(-(lookback + buffer));
 
             var stockHistory = await GetHistoricalData(ticker, startDate);
-
             if (stockHistory == null || !stockHistory.Any())
+            {
                 throw new Exception($"No data returned for {ticker}. Possibly invalid symbol.");
+            }
 
             var data = stockHistory.ToList();
+            if (data.Count < lookback) return []; // Early exit if insufficient data
 
-            for (int i = 0; i < data.Count; i++)
+            double sma50 = data.Count >= 50 ? data.TakeLast(50).Average(d => d.Close) : data.Average(d => d.Close);
+
+            var result = new List<object>();
+            double[] volumes = new double[volMaWindow];
+            int volIndex = 0;
+            double volSum = 0;
+
+            for (int i = lookback; i < data.Count; i++)
             {
-                data[i].SMA50 = i >= 50 ? data.Skip(i - 50).Take(50).Average(d => d.Close) : 0;
-                data[i].Trend = data[i].Close > data[i].SMA50;
-                data[i].Highs = i >= lookback ? data.Skip(i - lookback).Take(lookback).Max(d => d.High) : 0;
-                data[i].Lows = i >= lookback ? data.Skip(i - lookback).Take(lookback).Min(d => d.Low) : 0;
+                if (i >= volMaWindow)
+                {
+                    volSum -= volumes[volIndex];
+                    volSum += data[i].Volume;
+                    volumes[volIndex] = data[i].Volume;
+                    volIndex = (volIndex + 1) % volMaWindow;
+                }
+                else
+                {
+                    volumes[volIndex] = data[i].Volume;
+                    volSum += data[i].Volume;
+                    volIndex++;
+                }
+
+                data[i].SMA50 = sma50;
+                data[i].Trend = data[i].Close > sma50;
+                data[i].Highs = 0;
+                data[i].Lows = double.MaxValue;
+                for (int j = i - lookback; j < i; j++) // Direct index access
+                {
+                    data[i].Highs = Math.Max(data[i].Highs, data[j].High);
+                    data[i].Lows = Math.Min(data[i].Lows, data[j].Low);
+                }
                 data[i].LowerHighs = i > 0 && data[i].High < data[i - 1].High;
                 data[i].HigherLows = i > 0 && data[i].Low > data[i - 1].Low;
                 data[i].Wedge = data[i].LowerHighs && data[i].HigherLows;
-                data[i].VolMA = i >= 10 ? data.Skip(i - 10).Take(10).Average(d => d.Volume) : 0;
+                data[i].VolMA = i >= volMaWindow ? volSum / volMaWindow : volSum / (i + 1);
                 data[i].DecVol = data[i].Volume < data[i].VolMA;
-                data[i].Setup = i >= 50 && data[i].Trend && data[i].Wedge && data[i].DecVol;
-            }
+                data[i].Setup = data[i].Trend && data[i].Wedge && data[i].DecVol;
 
-            var threeDaysAgo = DateTime.Now.AddDays(-3); // find only setups from the last 3 days
-            return data.Where(d => d.Setup && d.Date >= threeDaysAgo).Select(d => new
-            {
-                d.Date,
-                d.Trend,
-                d.Close,
-                d.High,
-                d.Low,
-                d.Volume,
-                d.Setup,
-                d.VolMA,
-                Signal = "Wedge Pattern Detected"
-            }).ToList<object>();
+                if (data[i].Setup && data[i].Date >= DateTime.Now.AddDays(-3))
+                {
+                    result.Add(new
+                    {
+                        data[i].Date,
+                        data[i].Trend,
+                        data[i].Close,
+                        data[i].High,
+                        data[i].Low,
+                        data[i].Volume,
+                        data[i].Setup,
+                        data[i].VolMA,
+                        Signal = "Wedge Pattern Detected"
+                    });
+                }
+            }
+            return result;
         }
     }
 }
