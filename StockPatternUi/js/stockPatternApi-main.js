@@ -1,5 +1,5 @@
 function getAllSetups(baseURL) {
-  const webMethod = baseURL + "/api/Stock/getAllSetups";
+  const webMethod = baseURL + "/api/Stock/getAllExistingSetups";
 
   $.ajax({
     type: "GET",
@@ -9,7 +9,6 @@ function getAllSetups(baseURL) {
       let rows = "";
       $.each(data, function (index, item) {
         rows += "<tr class='stockSetupID_" + item.id + "'>";
-        rows += "<td>" + item.id + "</td>";
         rows += "<td>" + item.ticker + "</td>";
         rows += "<td>" + new Date(item.date).toLocaleDateString() + "</td>";
         rows += "<td>" + item.close.toFixed(2) + "</td>";

@@ -58,7 +58,7 @@ namespace StockPatternApi.Controllers
             }
         }
 
-        private async Task<IReadOnlyList<StockDataModel>> GetHistoricalData(string ticker, DateTime startDate)
+        private async Task<IReadOnlyList<GetHistoricalData>> GetHistoricalData(string ticker, DateTime startDate)
         {
             for (int attempt = 0; attempt < 3; attempt++)
             {
@@ -80,7 +80,7 @@ namespace StockPatternApi.Controllers
                             Data = x.Value
                         })
                         .Where(x => x.Date >= startDate)
-                        .Select(x => new StockDataModel
+                        .Select(x => new GetHistoricalData
                         {
                             Date = x.Date,
                             Close = double.Parse(x.Data.GetProperty("4. close").GetString()),
@@ -158,40 +158,45 @@ namespace StockPatternApi.Controllers
 
                 if (data[i].Setup && data[i].Date >= DateTime.Now.AddDays(-2))
                 {
-                    result.Add(new
-                    {
-                        data[i].Date,
-                        data[i].Trend,
-                        data[i].Close,
-                        data[i].High,
-                        data[i].Low,
-                        data[i].Volume,
-                        data[i].Setup,
-                        data[i].VolMA,
-                        Signal = "Wedge Pattern Detected"
-                    });
+                    bool checkIfRecordExists = dbContext.SPA_StockSetups.Any(s => s.Ticker == ticker && s.Date == data[i].Date);
 
-                    var setupRecord = new StockSetup
+                    if (!checkIfRecordExists)
                     {
-                        Ticker = ticker,
-                        Date = data[i].Date,
-                        Close = data[i].Close,
-                        High = data[i].High,
-                        Low = data[i].Low,
-                        Volume = data[i].Volume,
-                        Trend = data[i].Trend,
-                        Setup = data[i].Setup,
-                        VolMA = data[i].VolMA,
-                        Signal = "Wedge Pattern Detected"
-                    };
-                    dbContext.SPA_StockSetups.Add(setupRecord);
+                        result.Add(new
+                        {
+                            data[i].Date,
+                            data[i].Trend,
+                            data[i].Close,
+                            data[i].High,
+                            data[i].Low,
+                            data[i].Volume,
+                            data[i].Setup,
+                            data[i].VolMA,
+                            Signal = "Wedge Pattern Detected"
+                        });
+
+                        var setupRecord = new StockSetups
+                        {
+                            Ticker = ticker,
+                            Date = data[i].Date,
+                            Close = data[i].Close,
+                            High = data[i].High,
+                            Low = data[i].Low,
+                            Volume = data[i].Volume,
+                            Trend = data[i].Trend,
+                            Setup = data[i].Setup,
+                            VolMA = data[i].VolMA,
+                            Signal = "Wedge Pattern Detected"
+                        };
+                        dbContext.SPA_StockSetups.Add(setupRecord);
+                    }
                 }
             }
             await dbContext.SaveChangesAsync();
             return result;
         }
-        [HttpGet("getAllSetups")]
-        public IActionResult GetAllSetups()
+        [HttpGet("getAllExistingSetups")]
+        public IActionResult GetAllExistingSetups()
         {
             try
             {

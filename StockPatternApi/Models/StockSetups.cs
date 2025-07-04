@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace StockPatternApi.Models
 {
     [Table("SPA_StockSetups")]
-    public class StockSetup
+    public class StockSetups
     {
         [Key]
         public int Id { get; set; }

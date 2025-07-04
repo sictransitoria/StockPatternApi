@@ -8,7 +8,7 @@ namespace StockPatternApi.Data
         public StockPatternDbContext(DbContextOptions<StockPatternDbContext> options)
             : base(options) { }
 
-        public DbSet<StockSetup> SPA_StockSetups { get; set; }
-        public DbSet<StockDataModel> SPA_FinalResults { get; set; }
+        public DbSet<StockSetups> SPA_StockSetups { get; set; }
+        public DbSet<FinalResults> SPA_FinalResults { get; set; }
     }
 }

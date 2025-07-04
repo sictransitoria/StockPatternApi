@@ -1,8 +1,8 @@
 [
   {
     "ContainingType": "StockPatternApi.Controllers.StockController",
-    "Method": "GetAllSetups",
-    "RelativePath": "api/Stock/getAllSetups",
+    "Method": "GetAllExistingSetups",
+    "RelativePath": "api/Stock/getAllExistingSetups",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,

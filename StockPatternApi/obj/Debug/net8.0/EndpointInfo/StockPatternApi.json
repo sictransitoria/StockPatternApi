@@ -38,7 +38,7 @@
         }
       }
     },
-    "/api/Stock/getAllSetups": {
+    "/api/Stock/getAllExistingSetups": {
       "get": {
         "tags": [
           "Stock"

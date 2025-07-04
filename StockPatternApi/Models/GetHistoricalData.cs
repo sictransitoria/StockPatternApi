@@ -1,6 +1,6 @@
 ﻿namespace StockPatternApi.Models
 {
-    public class StockDataModel
+    public class GetHistoricalData
     {
         public DateTime Date { get; set; }
         public double Close { get; set; }

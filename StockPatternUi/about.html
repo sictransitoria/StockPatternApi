@@ -26,36 +26,30 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav ms-auto">
                         <li class="nav-item">
-                            <a class="nav-link active" href="index.html">Wedge Patterns</a>
+                            <a class="nav-link" href="index.html">Wedge Patterns</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="about.html">About</a>
+                            <a class="nav-link active" href="about.html">About</a>
                         </li>
                     </ul>
                 </div>
             </div>
         </nav>
-        <h1 class="mainTitle mb-4">Wedge Pattern Detections</h1>
-        <p class="lead">This page displays the results of stock pattern detections, specifically focusing on wedge
-            patterns.</p>
+        <h1 class="mainTitle mb-4">About</h1>
+        <p>
+            This platform provides technical traders and analysts with automatically detected stock wedge patterns based
+            on historical market data.
+            The goal is simple: cut through the noise and present clean, actionable setups driven by repeatable
+            technical conditions.
+        </p>
+        <p>
+            Whether you're scanning for breakouts or monitoring volume trends, this tool offers a quick snapshot of
+            potential trading opportunities.
+        </p>
+        <p>
+            It is maintained by IfElse Wealth Management with an emphasis on reliability, clarity, and practical utility.
+        </p>
 
-        <div id="table-container" class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Ticker</th>
-                        <th>Date</th>
-                        <th>Close</th>
-                        <th>High</th>
-                        <th>Low</th>
-                        <th>Volume</th>
-                        <th>VolMA</th>
-                    </tr>
-                </thead>
-                <tbody id="stockSetupTableBody">
-                </tbody>
-            </table>
-        </div>
         <footer class="bg-dark text-white text-center py-3 mt-4">
             <p class="mb-0">&copy; <span id="getCurrentYear"></span> IfElse Wealth Management. All rights reserved.</p>
         </footer>
@@ -69,8 +63,6 @@
     <script src="js/stockPatternApi-main.js?v=<?=Date.now()?>"></script>
 
     <script>
-        getAllSetups(baseURL);
-
         const date = new Date().getFullYear();
         document.getElementById("getCurrentYear").innerHTML = date;
     </script>
