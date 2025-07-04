@@ -1,0 +1,22 @@
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace StockPatternApi.Models
+{
+    [Table("SPA_StockSetups")]
+    public class StockSetup
+    {
+        [Key]
+        public int Id { get; set; }
+        public required string Ticker { get; set; }
+        public DateTime Date { get; set; }
+        public double Close { get; set; }
+        public double High { get; set; }
+        public double Low { get; set; }
+        public long Volume { get; set; }
+        public bool Trend { get; set; }
+        public bool Setup { get; set; }
+        public double VolMA { get; set; }
+        public required string Signal { get; set; }
+    }
+}

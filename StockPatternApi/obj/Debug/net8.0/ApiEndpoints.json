@@ -1,8 +1,18 @@
 [
   {
     "ContainingType": "StockPatternApi.Controllers.StockController",
+    "Method": "GetAllSetups",
+    "RelativePath": "api/Stock/getAllSetups",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "StockPatternApi.Controllers.StockController",
     "Method": "GetBatchSetups",
-    "RelativePath": "api/Stock/getSetups",
+    "RelativePath": "api/Stock/getStockSetups",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,

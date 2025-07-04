@@ -5,7 +5,7 @@
     "version": "1.0"
   },
   "paths": {
-    "/api/Stock/getSetups": {
+    "/api/Stock/getStockSetups": {
       "get": {
         "tags": [
           "Stock"
@@ -30,6 +30,18 @@
               "default": 10
             }
           }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Stock/getAllSetups": {
+      "get": {
+        "tags": [
+          "Stock"
         ],
         "responses": {
           "200": {

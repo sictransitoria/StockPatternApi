@@ -12,8 +12,14 @@ namespace StockPatternApi.Controllers
     {
         private readonly string API_KEY = Keys.API_KEY;
         private readonly HttpClient httpClient = new HttpClient();
+        private readonly StockPatternDbContext dbContext;
 
-        [HttpGet("getSetups")]
+        public StockController(StockPatternDbContext context)
+        {
+            dbContext = context;
+        }
+
+        [HttpGet("getStockSetups")]
         public async Task<IActionResult> GetBatchSetups([FromQuery] string[] tickers, [FromQuery] int lookback = 10)
         {
             try
@@ -150,7 +156,7 @@ namespace StockPatternApi.Controllers
                 data[i].DecVol = data[i].Volume < data[i].VolMA;
                 data[i].Setup = data[i].Trend && data[i].Wedge && data[i].DecVol;
 
-                if (data[i].Setup && data[i].Date >= DateTime.Now.AddDays(-3))
+                if (data[i].Setup && data[i].Date >= DateTime.Now.AddDays(-2))
                 {
                     result.Add(new
                     {
@@ -164,9 +170,41 @@ namespace StockPatternApi.Controllers
                         data[i].VolMA,
                         Signal = "Wedge Pattern Detected"
                     });
+
+                    var setupRecord = new StockSetup
+                    {
+                        Ticker = ticker,
+                        Date = data[i].Date,
+                        Close = data[i].Close,
+                        High = data[i].High,
+                        Low = data[i].Low,
+                        Volume = data[i].Volume,
+                        Trend = data[i].Trend,
+                        Setup = data[i].Setup,
+                        VolMA = data[i].VolMA,
+                        Signal = "Wedge Pattern Detected"
+                    };
+                    dbContext.SPA_StockSetups.Add(setupRecord);
                 }
             }
+            await dbContext.SaveChangesAsync();
             return result;
+        }
+        [HttpGet("getAllSetups")]
+        public IActionResult GetAllSetups()
+        {
+            try
+            {
+                var setups = dbContext.SPA_StockSetups
+                    .OrderByDescending(s => s.Date)
+                    .ToList();
+
+                return Ok(setups);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error fetching setups: {ex.Message}");
+            }
         }
     }
 }
