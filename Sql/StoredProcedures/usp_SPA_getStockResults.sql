@@ -1,11 +1,13 @@
-CREATE OR ALTER PROCEDURE usp_getStockResults
+CREATE OR ALTER PROCEDURE usp_SPA_getFinalResults
+
 AS
 BEGIN
-    SELECT 
-        s.Ticker 'Symbol'
-    ,   CONCAT(ROUND(((f.ClosingPrice - s.[Close]) / s.[Close] * 100), 2), '%') 'PercentageDifference'
-    ,   CASE WHEN f.IsSuccessful = 1 THEN 'GREEN' ELSE 'RED' END 'Result'
-	,   FORMAT(f.DateUpdated, 'MM-dd-yy hh:mm:ss') 'DateTime'
-    FROM SPA_StockSetups s
-    JOIN SPA_FinalResults f ON s.Id = f.StockSetupId
+    SELECT
+		  s.Ticker AS Ticker,
+		  ROUND(((f.ClosingPrice - s.[Close]) / s.[Close] * 100), 2) AS PercentageDifference, -- Return as numeric
+		  CASE WHEN f.ClosingPrice > s.[Close] THEN 'GREEN' ELSE 'RED' END AS GreenOrRedDay,
+		  CONVERT(VARCHAR(17), f.DateUpdated, 13) AS DateUpdated
+	FROM  SPA_StockSetups s
+	JOIN  SPA_FinalResults f ON s.Id = f.StockSetupId
+	WHERE s.IsFinalized = 1
 END;

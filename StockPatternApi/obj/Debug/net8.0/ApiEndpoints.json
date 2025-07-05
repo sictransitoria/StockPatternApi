@@ -11,6 +11,16 @@
   },
   {
     "ContainingType": "StockPatternApi.Controllers.StockController",
+    "Method": "GetFinalResultsReport",
+    "RelativePath": "api/Stock/getFinalResultsReport",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "StockPatternApi.Controllers.StockController",
     "Method": "GetBatchSetups",
     "RelativePath": "api/Stock/getStockSetups",
     "HttpMethod": "GET",
@@ -26,6 +36,22 @@
         "Name": "lookback",
         "Type": "System.Int32",
         "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "StockPatternApi.Controllers.StockController",
+    "Method": "SaveToFinalResults",
+    "RelativePath": "api/Stock/saveToFinalResults",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "data",
+        "Type": "StockPatternApi.Models.FinalResults",
+        "IsRequired": true
       }
     ],
     "ReturnTypes": []

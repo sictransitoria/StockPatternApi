@@ -10,7 +10,6 @@ namespace StockPatternApi.Models
         public int Id { get; set; }
         public int StockSetupId { get; set; }
         public DateTime DateUpdated { get; set; }
-        public bool IsSuccessful { get; set; }
         public double ClosingPrice { get; set; }
     }
 }

@@ -18,5 +18,6 @@ namespace StockPatternApi.Models
         public bool Setup { get; set; }
         public double VolMA { get; set; }
         public required string Signal { get; set; }
+        public bool IsFinalized { get; set; }
     }
 }

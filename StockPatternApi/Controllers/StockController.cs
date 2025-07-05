@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using StockPatternApi.Data;
 using StockPatternApi.Models;
 using StockPatternApi.Services;
@@ -156,9 +157,10 @@ namespace StockPatternApi.Controllers
                 data[i].DecVol = data[i].Volume < data[i].VolMA;
                 data[i].Setup = data[i].Trend && data[i].Wedge && data[i].DecVol;
 
-                if (data[i].Setup && data[i].Date >= DateTime.Now.AddDays(-2))
+                DateTime cutoffDate = GetMostRecentTradingDay(2);
+                if (data[i].Setup && data[i].Date >= cutoffDate)
                 {
-                    bool checkIfRecordExists = dbContext.SPA_StockSetups.Any(s => s.Ticker == ticker && s.Date == data[i].Date);
+                    bool checkIfRecordExists = dbContext.SPA_StockSetups.Any(s => s.Ticker == ticker && s.Date == data[i].Date && s.IsFinalized == false);
 
                     if (!checkIfRecordExists)
                     {
@@ -186,6 +188,7 @@ namespace StockPatternApi.Controllers
                             Trend = data[i].Trend,
                             Setup = data[i].Setup,
                             VolMA = data[i].VolMA,
+                            IsFinalized = false,
                             Signal = "Wedge Pattern Detected"
                         };
                         dbContext.SPA_StockSetups.Add(setupRecord);
@@ -201,6 +204,7 @@ namespace StockPatternApi.Controllers
             try
             {
                 var setups = dbContext.SPA_StockSetups
+                    .Where(s => !s.IsFinalized)
                     .OrderByDescending(s => s.Date)
                     .ToList();
 
@@ -209,6 +213,74 @@ namespace StockPatternApi.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, $"Error fetching setups: {ex.Message}");
+            }
+        }
+        [HttpPost("saveToFinalResults")]
+        public async Task<IActionResult> SaveToFinalResults([FromBody] FinalResults data)
+        {
+            if (data == null || data.StockSetupId <= 0)
+            {
+                return BadRequest("Invalid data.");
+            }
+
+            try
+            {          
+                var finalResult = new FinalResults
+                {
+                    StockSetupId = data.StockSetupId,
+                    DateUpdated = DateTime.Now,
+                    ClosingPrice = data.ClosingPrice
+                };
+
+                dbContext.SPA_FinalResults.Add(finalResult);
+
+                var stockSetup = await dbContext.SPA_StockSetups
+                    .FirstOrDefaultAsync(s => s.Id == data.StockSetupId);
+
+                if (stockSetup == null)
+                {
+                    return NotFound("Stock setup not found.");
+                }
+
+                stockSetup.IsFinalized = true;
+
+                await dbContext.SaveChangesAsync();
+                return Ok("Data saved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Error saving closing price. Error Message: " + ex.Message);
+            }
+        }
+        public static DateTime GetMostRecentTradingDay(int tradingDaysAgo)
+        {
+            DateTime date = DateTime.Today;
+            int count = 0;
+
+            while (count < tradingDaysAgo)
+            {
+                date = date.AddDays(-1);
+                if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+                {
+                    count++;
+                }
+            }
+            return date;
+        }
+        [HttpGet("getFinalResultsReport")]
+        public async Task<IActionResult> GetFinalResultsReport()
+        {
+            try
+            {
+                var finalResults = await dbContext.FinalResultsReport
+                    .FromSqlRaw("EXEC usp_SPA_getFinalResults")
+                    .ToListAsync();
+
+                return Ok(finalResults);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error executing stored procedure! Error Message: {ex.Message}");
             }
         }
     }

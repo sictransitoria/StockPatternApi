@@ -49,7 +49,75 @@
           }
         }
       }
+    },
+    "/api/Stock/saveToFinalResults": {
+      "post": {
+        "tags": [
+          "Stock"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalResults"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalResults"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalResults"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Stock/getFinalResultsReport": {
+      "get": {
+        "tags": [
+          "Stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
-  "components": { }
+  "components": {
+    "schemas": {
+      "FinalResults": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stockSetupId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dateUpdated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closingPrice": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
 }

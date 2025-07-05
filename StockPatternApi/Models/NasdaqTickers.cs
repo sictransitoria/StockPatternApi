@@ -14,7 +14,7 @@
             ,   "QUBT"
             ,   "RUM"
             ,   "OKLO"
-            ,   "SMCI"
+            ,   "HIMS"
             ,   "AVGO"
          ];
     }

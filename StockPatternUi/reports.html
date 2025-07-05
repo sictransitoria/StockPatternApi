@@ -35,30 +35,34 @@
                             <a class="nav-link" href="index.html">Wedge Patterns</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="reports.html">Reports</a>
+                            <a class="nav-link active" href="reports.html">Reports</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="about.html">About</a>
+                            <a class="nav-link" href="about.html">About</a>
                         </li>
                     </ul>
                 </div>
             </div>
         </nav>
-        <h1 class="mainTitle mb-4">About</h1>
-        <p>
-            This platform provides technical traders and analysts with automatically detected stock wedge patterns based
-            on historical market data.
-            The goal is simple: cut through the noise and present clean, actionable setups driven by repeatable
-            technical conditions.
-        </p>
-        <p>
-            Whether you're scanning for breakouts or monitoring volume trends, this tool offers a quick snapshot of
-            potential trading opportunities.
-        </p>
-        <p>
-            It is maintained by IfElse Wealth Management with an emphasis on reliability, clarity, and practical
-            utility.
-        </p>
+        <h1 class="mainTitle mb-4">Reports</h1>
+        <div id="table-container" class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Percentage Change</th>
+                        <th>Green or Red Day</th>
+                        <th>Date Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="finalResultsReportTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="loader-container d-none">
+            <div class="loader"></div>
+        </div>
 
         <footer class="bg-dark text-white text-center py-3 mt-4">
             <p class="mb-0">&copy; <span id="getCurrentYear"></span> IfElse Wealth Management. All rights reserved.</p>
@@ -73,6 +77,8 @@
     <script src="js/stockPatternApi-main.js?v=<?=Date.now()?>"></script>
 
     <script>
+        getFinalResultsReport(baseURL)
+
         const date = new Date().getFullYear();
         document.getElementById("getCurrentYear").innerHTML = date;
     </script>
