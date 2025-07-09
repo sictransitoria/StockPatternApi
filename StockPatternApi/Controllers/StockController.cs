@@ -37,7 +37,7 @@ namespace StockPatternApi.Controllers
 
                 foreach (var ticker in symbols)
                 {
-                    var setups = await DetectPattern(ticker.ToUpper(), lookback);
+                    var setups = await DetectWedgePatterns(ticker.ToUpper(), lookback);
                     if (setups != null && setups.Count != 0)
                     {
                         results.AddRange(setups.Select(s => new
@@ -103,11 +103,12 @@ namespace StockPatternApi.Controllers
             throw new Exception("Failed to fetch historical data after multiple attempts.");
         }
 
-        private async Task<List<object>> DetectPattern(string ticker, int lookback)
+        private async Task<List<object>> DetectWedgePatterns(string ticker, int lookback)
         {
             const int buffer = 50;
             const int volMaWindow = 10;
             DateTime startDate = DateTime.UtcNow.AddDays(-(lookback + buffer));
+            DateTime cutoffDate = GetMostRecentTradingDay(3);
 
             var stockHistory = await GetHistoricalData(ticker, startDate);
             if (stockHistory == null || !stockHistory.Any())
@@ -116,7 +117,12 @@ namespace StockPatternApi.Controllers
             }
 
             var data = stockHistory.ToList();
-            if (data.Count < lookback) return []; // Early exit if insufficient data
+            if (data.Count < lookback) return new List<object>(); // fix early return
+
+            var existingSetups = dbContext.SPA_StockSetups
+                .Where(s => s.Ticker == ticker && s.IsFinalized)
+                .Select(s => s.Date)
+                .ToHashSet();
 
             double sma50 = data.Count >= 50 ? data.TakeLast(50).Average(d => d.Close) : data.Average(d => d.Close);
 
@@ -141,43 +147,48 @@ namespace StockPatternApi.Controllers
                     volIndex++;
                 }
 
-                data[i].SMA50 = sma50;
-                data[i].Trend = data[i].Close > sma50;
-                data[i].Highs = 0;
-                data[i].Lows = double.MaxValue;
-                for (int j = i - lookback; j < i; j++) // Direct index access
+                double highs = double.MinValue;
+                double lows = double.MaxValue;
+
+                for (int j = i - lookback; j < i; j++)
                 {
-                    data[i].Highs = Math.Max(data[i].Highs, data[j].High);
-                    data[i].Lows = Math.Min(data[i].Lows, data[j].Low);
+                    highs = Math.Max(highs, data[j].High);
+                    lows = Math.Min(lows, data[j].Low);
                 }
-                data[i].LowerHighs = i > 0 && data[i].High < data[i - 1].High;
-                data[i].HigherLows = i > 0 && data[i].Low > data[i - 1].Low;
-                data[i].Wedge = data[i].LowerHighs && data[i].HigherLows;
-                data[i].VolMA = i >= volMaWindow ? volSum / volMaWindow : volSum / (i + 1);
-                data[i].DecVol = data[i].Volume < data[i].VolMA;
-                data[i].Setup = data[i].Trend && data[i].Wedge && data[i].DecVol;
 
-                DateTime cutoffDate = GetMostRecentTradingDay(2);
-                if (data[i].Setup && data[i].Date >= cutoffDate)
+                bool lowerHighs = i > 0 && data[i].High < data[i - 1].High;
+                bool higherLows = i > 0 && data[i].Low > data[i - 1].Low;
+                bool wedge = lowerHighs && higherLows;
+
+                double volMA = i >= volMaWindow ? volSum / volMaWindow : volSum / (i + 1);
+                bool decVol = data[i].Volume < volMA;
+                bool trend = data[i].Close > sma50;
+                bool setup = trend && wedge && decVol;
+
+                double compression = (highs - lows) / highs;
+
+                if (setup && data[i].Date >= cutoffDate)
                 {
-                    bool checkIfRecordExists = dbContext.SPA_StockSetups.Any(s => s.Ticker == ticker && s.Date == data[i].Date && s.IsFinalized == false);
-
-                    if (!checkIfRecordExists)
+                    if (!existingSetups.Contains(data[i].Date))
                     {
+                        string signal = compression < 0.05 ? "A+ Wedge Setup"
+                                      : compression < 0.1 ? "Good Wedge Setup"
+                                      : "Wedge Pattern Detected";
+
                         result.Add(new
                         {
                             data[i].Date,
-                            data[i].Trend,
+                            Trend = trend,
                             data[i].Close,
                             data[i].High,
                             data[i].Low,
                             data[i].Volume,
-                            data[i].Setup,
-                            data[i].VolMA,
-                            Signal = "Wedge Pattern Detected"
+                            Setup = setup,
+                            VolMA = volMA,
+                            Signal = signal
                         });
 
-                        var setupRecord = new StockSetups
+                        dbContext.SPA_StockSetups.Add(new StockSetups
                         {
                             Ticker = ticker,
                             Date = data[i].Date,
@@ -185,19 +196,19 @@ namespace StockPatternApi.Controllers
                             High = data[i].High,
                             Low = data[i].Low,
                             Volume = data[i].Volume,
-                            Trend = data[i].Trend,
-                            Setup = data[i].Setup,
-                            VolMA = data[i].VolMA,
+                            Trend = trend,
+                            Setup = setup,
+                            VolMA = volMA,
                             IsFinalized = false,
-                            Signal = "Wedge Pattern Detected"
-                        };
-                        dbContext.SPA_StockSetups.Add(setupRecord);
+                            Signal = signal
+                        });
                     }
                 }
             }
             await dbContext.SaveChangesAsync();
             return result;
         }
+
         [HttpGet("getAllExistingSetups")]
         public IActionResult GetAllExistingSetups()
         {
@@ -208,13 +219,14 @@ namespace StockPatternApi.Controllers
                     .OrderByDescending(s => s.Date)
                     .ToList();
 
-                return Ok(setups);
+                return setups.Count > 0 ? Ok(setups) : NotFound("No setups found.");
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Error fetching setups: {ex.Message}");
             }
         }
+
         [HttpPost("saveToFinalResults")]
         public async Task<IActionResult> SaveToFinalResults([FromBody] FinalResults data)
         {
@@ -252,6 +264,7 @@ namespace StockPatternApi.Controllers
                 return StatusCode(500, "Error saving closing price. Error Message: " + ex.Message);
             }
         }
+
         public static DateTime GetMostRecentTradingDay(int tradingDaysAgo)
         {
             DateTime date = DateTime.Today;
@@ -267,6 +280,7 @@ namespace StockPatternApi.Controllers
             }
             return date;
         }
+
         [HttpGet("getFinalResultsReport")]
         public async Task<IActionResult> GetFinalResultsReport()
         {

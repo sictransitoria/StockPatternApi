@@ -1,21 +1,25 @@
-﻿namespace StockPatternApi.Data
+﻿namespace StockPatternApi.Models
 {
     public static class NasdaqTickers
     {
         public static readonly string[] Tickers =
         [
-                "ALAB"
-            ,   "AAPL"
-            ,   "LUCD"
-            ,   "NVDA"
-            ,   "AMTX"
-            ,   "TSLA"
-            ,   "IONQ"
-            ,   "QUBT"
-            ,   "RUM"
-            ,   "OKLO"
-            ,   "HIMS"
-            ,   "AVGO"
+            "AAPL",
+            "ALAB",
+            "AMTX",
+            "AMZN",
+            "AVGO",
+            "CRWV",
+            "GOOG",
+            "GOOGL",
+            "HIMS",
+            "IONQ",
+            "LUCD",
+            "NVDA",
+            "OKLO",
+            "QUBT",
+            "RUM",
+            "TSLA"
          ];
     }
 }

@@ -19,6 +19,7 @@ function getAllSetups(baseURL) {
           rows += "<td>" + item.low.toFixed(2) + "</td>";
           rows += "<td>" + item.volume.toLocaleString() + "</td>";
           rows += "<td>" + item.volMA.toLocaleString() + "</td>";
+          rows += "<td>" + item.signal + "</td>";
           rows += "</tr>";
         }
       });
@@ -26,6 +27,7 @@ function getAllSetups(baseURL) {
 
       const tbody = document.getElementById("stockSetupTableBody");
       const rowCount = tbody.rows.length;
+      console.log("Total Setups: " + rowCount);
       document.getElementById("setupCount").innerText = rowCount;
     },
     error: function (xhr) {
