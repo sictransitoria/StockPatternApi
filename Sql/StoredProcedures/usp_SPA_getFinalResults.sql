@@ -1,5 +1,10 @@
-CREATE OR ALTER PROCEDURE usp_SPA_getFinalResults
+/*
 
+EXEC usp_SPA_getFinalResults;
+
+*/
+
+CREATE OR ALTER PROCEDURE usp_SPA_getFinalResults
 AS
 BEGIN
     SELECT

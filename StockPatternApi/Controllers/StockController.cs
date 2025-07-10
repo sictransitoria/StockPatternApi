@@ -108,7 +108,7 @@ namespace StockPatternApi.Controllers
             const int buffer = 50;
             const int volMaWindow = 10;
             DateTime startDate = DateTime.UtcNow.AddDays(-(lookback + buffer));
-            DateTime cutoffDate = GetMostRecentTradingDay(3);
+            DateTime cutoffDate = GetMostRecentTradingDay(2);
 
             var stockHistory = await GetHistoricalData(ticker, startDate);
             if (stockHistory == null || !stockHistory.Any())
@@ -158,19 +158,44 @@ namespace StockPatternApi.Controllers
 
                 bool lowerHighs = i > 0 && data[i].High < data[i - 1].High;
                 bool higherLows = i > 0 && data[i].Low > data[i - 1].Low;
-                bool wedge = lowerHighs && higherLows;
+                bool wedge = lowerHighs && higherLows;  // Wedge condition: lower highs & higher lows
+
+                double highSlope = (data[i - 1].High - data[i - lookback].High) / lookback;
+                double lowSlope = (data[i - 1].Low - data[i - lookback].Low) / lookback;
+                bool isWedgePattern = highSlope < 0 && lowSlope > 0;  // Sloping wedge pattern
 
                 double volMA = i >= volMaWindow ? volSum / volMaWindow : volSum / (i + 1);
                 bool decVol = data[i].Volume < volMA;
                 bool trend = data[i].Close > sma50;
-                bool setup = trend && wedge && decVol;
+                bool setup = trend && wedge && decVol;  // Valid setup: trend + wedge + low volume
 
-                double compression = (highs - lows) / highs;
+                double compression = (highs - lows) / highs;  // Price range compression
 
                 if (setup && data[i].Date >= cutoffDate)
                 {
                     if (!existingSetups.Contains(data[i].Date))
                     {
+                        var wedgeData = data.Skip(i - lookback).Take(lookback).ToList();
+
+                        var resistancePoints = wedgeData
+                            .Select((d, idx) => new { X = idx, Y = d.High })
+                            .ToList();
+
+                        double avgX = resistancePoints.Average(p => p.X);
+                        double avgY = resistancePoints.Average(p => p.Y);
+
+                        double numerator = resistancePoints.Sum(p => (p.X - avgX) * (p.Y - avgY));
+                        double denominator = resistancePoints.Sum(p => Math.Pow(p.X - avgX, 2));
+                        double slope = denominator == 0 ? 0 : numerator / denominator;
+                        double intercept = avgY - slope * avgX;
+
+                        int nextIndex = lookback;
+                        double resistanceLevel = slope * nextIndex + intercept;
+                        double breakoutPrice = resistanceLevel * 1.002;
+
+                        resistanceLevel = Math.Round(resistanceLevel, 2);
+                        breakoutPrice = Math.Round(breakoutPrice, 2);
+
                         string signal = compression < 0.05 ? "A+ Wedge Setup"
                                       : compression < 0.1 ? "Good Wedge Setup"
                                       : "Wedge Pattern Detected";
@@ -185,7 +210,10 @@ namespace StockPatternApi.Controllers
                             data[i].Volume,
                             Setup = setup,
                             VolMA = volMA,
-                            Signal = signal
+                            Signal = signal,
+                            IsWedgePattern = isWedgePattern,
+                            ResistanceLevel = resistanceLevel,
+                            BreakoutPrice = breakoutPrice,
                         });
 
                         dbContext.SPA_StockSetups.Add(new StockSetups
@@ -200,7 +228,10 @@ namespace StockPatternApi.Controllers
                             Setup = setup,
                             VolMA = volMA,
                             IsFinalized = false,
-                            Signal = signal
+                            Signal = signal,
+                            IsWedgePattern = isWedgePattern,
+                            ResistanceLevel = resistanceLevel,
+                            BreakoutPrice = breakoutPrice
                         });
                     }
                 }

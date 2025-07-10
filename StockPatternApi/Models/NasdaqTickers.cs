@@ -17,6 +17,7 @@
             "LUCD",
             "NVDA",
             "OKLO",
+            "QQQ",
             "QUBT",
             "RUM",
             "TSLA"

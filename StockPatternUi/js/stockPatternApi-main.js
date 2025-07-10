@@ -19,6 +19,8 @@ function getAllSetups(baseURL) {
           rows += "<td>" + item.low.toFixed(2) + "</td>";
           rows += "<td>" + item.volume.toLocaleString() + "</td>";
           rows += "<td>" + item.volMA.toLocaleString() + "</td>";
+          rows += "<td>" + item.resistanceLevel.toFixed(2) + "</td>";
+          rows += "<td>" + item.breakoutPrice.toFixed(2) + "</td>";
           rows += "<td>" + item.signal + "</td>";
           rows += "</tr>";
         }

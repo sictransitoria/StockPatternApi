@@ -18,6 +18,9 @@ namespace StockPatternApi.Models
         public bool Setup { get; set; }
         public double VolMA { get; set; }
         public required string Signal { get; set; }
+        public bool IsWedgePattern { get; set; }
         public bool IsFinalized { get; set; }
+        public double ResistanceLevel { get; set; }
+        public double BreakoutPrice { get; set; }
     }
 }

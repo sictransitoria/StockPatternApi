@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("StockPatternApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+acafde8fd200b46d77d464a82afc9a9f445a1a3a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+98b8ec91c219509c45d8b0fd011d72dcff87278b")]
 [assembly: System.Reflection.AssemblyProductAttribute("StockPatternApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("StockPatternApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
