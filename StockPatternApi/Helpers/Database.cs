@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using StockPatternApi.Models;
 
-namespace StockPatternApi.Data
+namespace StockPatternApi.Helpers
 {
     public class StockPatternDbContext : DbContext
     {

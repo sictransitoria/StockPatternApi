@@ -1,57 +1,58 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StockPatternApi.Data;
+using StockPatternApi.Helpers;
 using StockPatternApi.Models;
 using StockPatternApi.Services;
+using System.Collections.Generic;
 using System.Text.Json;
 
 namespace StockPatternApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class StockController : ControllerBase
+    public class StockController(StockPatternDbContext context) : ControllerBase
     {
         private readonly string API_KEY = Keys.API_KEY;
         private readonly HttpClient httpClient = new HttpClient();
-        private readonly StockPatternDbContext dbContext;
-
-        public StockController(StockPatternDbContext context)
-        {
-            dbContext = context;
-        }
+        private readonly StockPatternDbContext dbContext = context;
 
         [HttpGet("getStockSetups")]
         public async Task<IActionResult> GetBatchSetups([FromQuery] string[] tickers, [FromQuery] int lookback = 10)
         {
             try
             {
-                var results = new List<object>();
+                var allSetups = new List<StockSetups>();
                 var emailService = new EmailService();
 
-                var symbols = (tickers != null && tickers.Length != 0) ? tickers : NasdaqTickers.Tickers;
+                var symbols = (tickers != null && tickers.Length != 0) ? tickers : StockSymbols.Tickers;
 
                 if (symbols == null || symbols.Length == 0)
-                {
                     return BadRequest("At least one ticker is required.");
-                }
 
                 foreach (var ticker in symbols)
                 {
                     var setups = await DetectWedgePatterns(ticker.ToUpper(), lookback);
-                    if (setups != null && setups.Count != 0)
+                    if (setups != null && setups.Count > 0)
                     {
-                        results.AddRange(setups.Select(s => new
-                        {
-                            Ticker = ticker,
-                            Setup = s
-                        }));
+                        allSetups.AddRange(setups);
                     }
                 }
-                if (results.Count > 0)
+
+                var latestSetups = allSetups
+                    .GroupBy(s => s.Ticker)
+                    .Select(g => g.OrderByDescending(x => x.Date).First())
+                    .ToList();
+
+                if (latestSetups.Count > 0)
                 {
-                    emailService.SendEmail(results);
+                    dbContext.SPA_StockSetups.AddRange(latestSetups);
+                    await dbContext.SaveChangesAsync();
+                    emailService.SendEmail(latestSetups);
                 }
-                return results.Count != 0 ? Ok(results) : NotFound("As it turns out, there was no setups found for any ticker.");
+
+                return latestSetups.Count > 0
+                    ? Ok(latestSetups)
+                    : NotFound("No wedge setups found for any ticker.");
             }
             catch (Exception ex)
             {
@@ -103,12 +104,12 @@ namespace StockPatternApi.Controllers
             throw new Exception("Failed to fetch historical data after multiple attempts.");
         }
 
-        private async Task<List<object>> DetectWedgePatterns(string ticker, int lookback)
+        private async Task<List<StockSetups>> DetectWedgePatterns(string ticker, int lookback)
         {
             const int buffer = 50;
             const int volMaWindow = 10;
             DateTime startDate = DateTime.UtcNow.AddDays(-(lookback + buffer));
-            DateTime cutoffDate = GetMostRecentTradingDay(2);
+            DateTime cutoffDate = Helpers.Functions.GetMostRecentTradingDay(1);
 
             var stockHistory = await GetHistoricalData(ticker, startDate);
             if (stockHistory == null || !stockHistory.Any())
@@ -117,16 +118,16 @@ namespace StockPatternApi.Controllers
             }
 
             var data = stockHistory.ToList();
-            if (data.Count < lookback) return new List<object>(); // fix early return
+            if (data.Count < lookback) return new List<StockSetups>(); // fix early return
 
             var existingSetups = dbContext.SPA_StockSetups
-                .Where(s => s.Ticker == ticker && s.IsFinalized)
+                .Where(s => s.Ticker == ticker)
                 .Select(s => s.Date)
                 .ToHashSet();
 
             double sma50 = data.Count >= 50 ? data.TakeLast(50).Average(d => d.Close) : data.Average(d => d.Close);
 
-            var result = new List<object>();
+            var results = new List<StockSetups>();
             double[] volumes = new double[volMaWindow];
             int volIndex = 0;
             double volSum = 0;
@@ -158,18 +159,27 @@ namespace StockPatternApi.Controllers
 
                 bool lowerHighs = i > 0 && data[i].High < data[i - 1].High;
                 bool higherLows = i > 0 && data[i].Low > data[i - 1].Low;
-                bool wedge = lowerHighs && higherLows;  // Wedge condition: lower highs & higher lows
+                bool wedge = lowerHighs && higherLows;
+
+                Console.WriteLine($"Wedge Check - Date: {data[i].Date}, LowerHighs: {lowerHighs}, HigherLows: {higherLows}");
 
                 double highSlope = (data[i - 1].High - data[i - lookback].High) / lookback;
                 double lowSlope = (data[i - 1].Low - data[i - lookback].Low) / lookback;
-                bool isWedgePattern = highSlope < 0 && lowSlope > 0;  // Sloping wedge pattern
+                bool isWedgePattern = highSlope < 0 && lowSlope > 0;
+
+                Console.WriteLine($"Slope Check - Date: {data[i].Date}, HighSlope: {highSlope}, LowSlope: {lowSlope}, IsWedgePattern: {isWedgePattern}");
 
                 double volMA = i >= volMaWindow ? volSum / volMaWindow : volSum / (i + 1);
                 bool decVol = data[i].Volume < volMA;
-                bool trend = data[i].Close > sma50;
-                bool setup = trend && wedge && decVol;  // Valid setup: trend + wedge + low volume
 
-                double compression = (highs - lows) / highs;  // Price range compression
+                Console.WriteLine($"Volume Check - Date: {data[i].Date}, Volume: {data[i].Volume}, VolMA: {volMA}, DecVol: {decVol}");
+
+                bool trend = data[i].Close > sma50;
+                Console.WriteLine($"Trend Check - Date: {data[i].Date}, Close: {data[i].Close}, SMA50: {sma50}, Trend: {trend}");
+
+                bool setup = trend && wedge && decVol;
+
+                double compression = (highs - lows) / highs;
 
                 if (setup && data[i].Date >= cutoffDate)
                 {
@@ -197,26 +207,12 @@ namespace StockPatternApi.Controllers
                         breakoutPrice = Math.Round(breakoutPrice, 2);
 
                         string signal = compression < 0.05 ? "A+ Wedge Setup"
-                                      : compression < 0.1 ? "Good Wedge Setup"
-                                      : "Wedge Pattern Detected";
+                                          : compression < 0.1 ? "Good Wedge Setup"
+                                          : "Wedge Pattern Detected";
 
-                        result.Add(new
-                        {
-                            data[i].Date,
-                            Trend = trend,
-                            data[i].Close,
-                            data[i].High,
-                            data[i].Low,
-                            data[i].Volume,
-                            Setup = setup,
-                            VolMA = volMA,
-                            Signal = signal,
-                            IsWedgePattern = isWedgePattern,
-                            ResistanceLevel = resistanceLevel,
-                            BreakoutPrice = breakoutPrice,
-                        });
+                        Console.WriteLine($"Setup Detected - Date: {data[i].Date}, Signal: {signal}, Resistance: {resistanceLevel}, Breakout: {breakoutPrice}");
 
-                        dbContext.SPA_StockSetups.Add(new StockSetups
+                        results.Add(new StockSetups
                         {
                             Ticker = ticker,
                             Date = data[i].Date,
@@ -224,20 +220,17 @@ namespace StockPatternApi.Controllers
                             High = data[i].High,
                             Low = data[i].Low,
                             Volume = data[i].Volume,
+                            VolMA = volMA,
                             Trend = trend,
                             Setup = setup,
-                            VolMA = volMA,
-                            IsFinalized = false,
                             Signal = signal,
-                            IsWedgePattern = isWedgePattern,
                             ResistanceLevel = resistanceLevel,
-                            BreakoutPrice = breakoutPrice
+                            IsFinalized = false
                         });
                     }
                 }
             }
-            await dbContext.SaveChangesAsync();
-            return result;
+            return results;
         }
 
         [HttpGet("getAllExistingSetups")]
@@ -267,7 +260,7 @@ namespace StockPatternApi.Controllers
             }
 
             try
-            {          
+            {
                 var finalResult = new FinalResults
                 {
                     StockSetupId = data.StockSetupId,
@@ -294,22 +287,6 @@ namespace StockPatternApi.Controllers
             {
                 return StatusCode(500, "Error saving closing price. Error Message: " + ex.Message);
             }
-        }
-
-        public static DateTime GetMostRecentTradingDay(int tradingDaysAgo)
-        {
-            DateTime date = DateTime.Today;
-            int count = 0;
-
-            while (count < tradingDaysAgo)
-            {
-                date = date.AddDays(-1);
-                if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
-                {
-                    count++;
-                }
-            }
-            return date;
         }
 
         [HttpGet("getFinalResultsReport")]

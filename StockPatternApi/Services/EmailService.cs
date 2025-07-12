@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication;
-using StockPatternApi.Models;
+﻿using StockPatternApi.Models;
 using System.Net.Mail;
 using System.Text.Json;
 

@@ -1,26 +1,45 @@
 ﻿namespace StockPatternApi.Models
 {
-    public static class NasdaqTickers
+    public static class StockSymbols
     {
         public static readonly string[] Tickers =
         [
             "AAPL",
+            "ABBV",
             "ALAB",
             "AMTX",
             "AMZN",
             "AVGO",
+            "CAT",
+            "COST",
             "CRWV",
+            "CVX",
+            "DE",
             "GOOG",
             "GOOGL",
+            "HD",
             "HIMS",
             "IONQ",
+            "JNJ",
+            "JPM",
+            "LLY",
             "LUCD",
+            "MA",
+            "MCD",
+            "MSFT",
             "NVDA",
             "OKLO",
+            "ORCL",
+            "PEP",
+            "PG",
             "QQQ",
             "QUBT",
             "RUM",
-            "TSLA"
-         ];
+            "TSLA",
+            "UNH",
+            "V",
+            "WMT",
+            "XOM"
+        ];
     }
 }

@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using StockPatternApi.Data;
+using StockPatternApi.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 

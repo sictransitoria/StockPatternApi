@@ -1,9 +1,8 @@
-# .gitignore files
+# Build artifacts
+bin
+obj
 StockPatternApi/Models/Keys.cs
 appsettings.json
 appsettings.Development.json
 .vs
 .vscode
-Properties
-obj
-bin
