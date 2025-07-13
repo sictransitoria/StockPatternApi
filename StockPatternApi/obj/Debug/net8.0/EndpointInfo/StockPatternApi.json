@@ -92,6 +92,18 @@
           }
         }
       }
+    },
+    "/api/Stock/getAggregatedSummaryReport": {
+      "get": {
+        "tags": [
+          "Stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {

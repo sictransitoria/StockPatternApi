@@ -2,6 +2,7 @@
 
 namespace StockPatternApi.Helpers
 {
+    #region Functions
     public static class Functions
     {
         public struct ChartPoint
@@ -149,4 +150,5 @@ namespace StockPatternApi.Helpers
             }
         }
     }
+    #endregion
 }

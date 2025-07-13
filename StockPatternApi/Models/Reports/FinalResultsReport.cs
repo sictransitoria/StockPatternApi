@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace StockPatternApi.Models
+namespace StockPatternApi.Models.Reports
 {
     public class FinalResultsReport
     {

@@ -11,10 +11,12 @@ namespace StockPatternApi.Controllers
     [Route("api/[controller]")]
     public class StockController(StockPatternDbContext context) : ControllerBase
     {
+        #region Stock Controller
         private readonly string API_KEY = Keys.API_KEY;
         private readonly HttpClient httpClient = new HttpClient();
         private readonly StockPatternDbContext dbContext = context;
 
+        #region GET Stock Setups
         [HttpGet("getStockSetups")]
         public async Task<IActionResult> GetBatchSetups([FromQuery] string[] tickers, [FromQuery] int lookback = 10)
         {
@@ -66,7 +68,9 @@ namespace StockPatternApi.Controllers
                 return StatusCode(500, $"There was an error returning results. Error Message: {ex.Message}");
             }
         }
+        #endregion
 
+        #region GET Historical Data
         private async Task<List<GetHistoricalData>> GetHistoricalData(string ticker, DateTime startDate)
         {
             for (int attempt = 0; attempt < 3; attempt++)
@@ -108,7 +112,9 @@ namespace StockPatternApi.Controllers
 
             throw new Exception("Failed to fetch historical data after multiple attempts.");
         }
+        #endregion
 
+        #region Other GET calls
         [HttpGet("getAllExistingSetups")]
         public IActionResult GetAllExistingSetups()
         {
@@ -126,7 +132,9 @@ namespace StockPatternApi.Controllers
                 return StatusCode(500, $"Error fetching setups: {ex.Message}");
             }
         }
+        #endregion
 
+        #region POST calls
         [HttpPost("saveToFinalResults")]
         public async Task<IActionResult> SaveToFinalResults([FromBody] FinalResults data)
         {
@@ -160,7 +168,9 @@ namespace StockPatternApi.Controllers
                 return StatusCode(500, "Error saving closing price. Error Message: " + ex.Message);
             }
         }
+        #endregion
 
+        #region Reports
         [HttpGet("getFinalResultsReport")]
         public async Task<IActionResult> GetFinalResultsReport()
         {
@@ -177,5 +187,24 @@ namespace StockPatternApi.Controllers
                 return StatusCode(500, $"Error executing stored procedure! Error Message: {ex.Message}");
             }
         }
+
+        [HttpGet("getAggregatedSummaryReport")]
+        public async Task<IActionResult> GetAggregatedSummaryReport()
+        {
+            try
+            {
+                var aggregatedSummaryResults = await dbContext.AggregatedSummaryReport
+                    .FromSqlRaw("EXEC usp_SPA_getAggregatedSummary")
+                    .ToListAsync();
+
+                return Ok(aggregatedSummaryResults);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error executing stored procedure! Error Message: {ex.Message}");
+            }
+        }
+        #endregion
     }
+    #endregion 
 }

@@ -1,7 +1,7 @@
 /* Global Styles */
 
 body {
-  font-family: "Libertinus Math", system-ui;
+  font-family: "TikTok Sans", sans-serif;
   font-weight: 400;
   font-style: normal;
 }
@@ -19,7 +19,7 @@ body {
   width: 40px;
   height: 40px;
   border: 5px solid #ccc;
-  border-top: 5px solid #333;
+  border-top: 5px solid #31792f;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

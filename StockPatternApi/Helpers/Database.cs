@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using StockPatternApi.Models;
+using StockPatternApi.Models.Reports;
 
 namespace StockPatternApi.Helpers
 {
@@ -14,5 +15,6 @@ namespace StockPatternApi.Helpers
 
         // Stored Procedures
         public DbSet<FinalResultsReport> FinalResultsReport { get; set; }
+        public DbSet<AggregatedSummaryReport> AggregatedSummaryReport { get; set; }
     }
 }
