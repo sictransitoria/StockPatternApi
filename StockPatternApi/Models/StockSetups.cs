@@ -18,7 +18,8 @@ namespace StockPatternApi.Models
         public bool Trend { get; set; }
         public bool Setup { get; set; }
         public required string Signal { get; set; }
-        public bool IsFinalized { get; set; }
         public double ResistanceLevel { get; set; }
+        public double BreakoutPrice { get; set; }
+        public bool IsFinalized { get; set; }
     }
 }
