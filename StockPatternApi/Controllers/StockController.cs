@@ -13,7 +13,7 @@ namespace StockPatternApi.Controllers
     {
         #region Stock Controller
         private readonly string API_KEY = Keys.API_KEY;
-        private readonly HttpClient httpClient = new HttpClient();
+        private readonly HttpClient httpClient = new();
         private readonly StockPatternDbContext dbContext = context;
 
         #region GET Stock Setups
@@ -56,7 +56,7 @@ namespace StockPatternApi.Controllers
                 {
                     dbContext.SPA_StockSetups.AddRange(latestSetups);
                     await dbContext.SaveChangesAsync();
-                    emailService.SendEmail(latestSetups);
+                    // emailService.SendEmail(latestSetups);
                 }
 
                 return latestSetups.Count > 0
@@ -77,8 +77,9 @@ namespace StockPatternApi.Controllers
             {
                 try
                 {
-                    var url = $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={API_KEY}";
-                    var response = await httpClient.GetStringAsync(url);
+                    var dailyUrl = $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={API_KEY}";
+                    // var intradayUrl = $"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={ticker}&interval=60min&outputsize=full&apikey={API_KEY}";
+                    var response = await httpClient.GetStringAsync(dailyUrl);
                     var json = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(response);
 
                     if (json == null || !json.ContainsKey("Time Series (Daily)"))
@@ -147,7 +148,8 @@ namespace StockPatternApi.Controllers
                 {
                     StockSetupId = data.StockSetupId,
                     DateUpdated = DateTime.Now,
-                    ClosingPrice = data.ClosingPrice
+                    PriceSoldAt = data.PriceSoldAt,
+                    IsActive = data.IsActive
                 };
 
                 dbContext.SPA_FinalResults.Add(finalResult);

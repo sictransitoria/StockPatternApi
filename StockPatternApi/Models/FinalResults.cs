@@ -8,8 +8,9 @@ namespace StockPatternApi.Models
     {
         [Key]
         public int Id { get; set; }
-        public int StockSetupId { get; set; }
+        public int? StockSetupId { get; set; }
         public DateTime DateUpdated { get; set; }
-        public double ClosingPrice { get; set; }
+        public double PriceSoldAt { get; set; }
+        public bool IsActive { get; set; }
     }
 }

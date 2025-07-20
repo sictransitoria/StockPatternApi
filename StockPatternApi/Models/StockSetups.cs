@@ -21,5 +21,12 @@ namespace StockPatternApi.Models
         public double ResistanceLevel { get; set; }
         public double BreakoutPrice { get; set; }
         public bool IsFinalized { get; set; }
+        public double Compression { get; set; }
+        public double HighSlope { get; set; }
+        public double LowSlope { get; set; }
+        public bool LowerHighs { get; set; }
+        public bool HigherLows { get; set; }
+        public bool KeltnerBreakout { get; set; }
+        public double SmoothedATR { get; set; }
     }
 }

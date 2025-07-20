@@ -2,7 +2,6 @@
 
 namespace StockPatternApi.Helpers
 {
-    #region Functions
     public static class Functions
     {
         public struct ChartPoint
@@ -26,7 +25,7 @@ namespace StockPatternApi.Helpers
 
         public static double CalculateSlope(List<ChartPoint> points)
         {
-            if (points.Count < 2) 
+            if (points.Count < 2)
                 return 0;
 
             double avgX = points.Average(p => p.X);
@@ -37,12 +36,26 @@ namespace StockPatternApi.Helpers
             return denominator == 0 ? 0 : numerator / denominator;
         }
 
+        public static double CalculateATR(List<GetHistoricalData> data, int index, int period)
+        {
+            if (index < period) return 0;
+            return data.Skip(index - period).Take(period)
+                .Average(d => Math.Max(d.High - d.Low, Math.Max(Math.Abs(d.High - d.Close), Math.Abs(d.Low - d.Close))));
+        }
+
+        public static double CalculateEMA(double current, double previousEMA, int period) =>
+            (current * (2.0 / (1 + period))) + (previousEMA * (1 - 2.0 / (1 + period)));
+
         public class WedgePatternDetector
         {
             private const int VolumeWindow = 10;
             private const int Lookback = 5;
-            private const double HighSlopeThreshold = -0.1;
-            private const double LowSlopeThreshold = 0.1;
+            private const double HighSlopeThreshold = -0.05;
+            private const double LowSlopeThreshold = 0.05;
+            private const int ATRPeriod = 10;
+            private const int EMAPeriod = 3;
+            private const int KeltnerEMAPeriod = 20;
+            private const double KeltnerMultiplier = 2.0;
 
             public static List<StockSetups> Detect(string ticker, List<GetHistoricalData> data, HashSet<DateTime> existingSetups)
             {
@@ -51,13 +64,22 @@ namespace StockPatternApi.Helpers
 
                 Console.WriteLine($"[INFO] Starting detection for {ticker}. Data count: {data.Count}, Scan cutoff date: {scanCutoff:yyyy-MM-dd}");
 
-                if (data.Count < Lookback + VolumeWindow)
+                if (data.Count < Lookback + VolumeWindow + ATRPeriod)
                 {
                     Console.WriteLine("[WARN] Not enough data to run detection.");
                     return results;
                 }
 
                 double sma50 = data.TakeLast(50).Average(d => d.Close);
+                double[] atr = new double[data.Count];
+                double[] emaATR = new double[data.Count];
+
+                for (int i = ATRPeriod; i < data.Count; i++)
+                {
+                    atr[i] = CalculateATR(data, i, ATRPeriod);
+                    emaATR[i] = i == ATRPeriod ? atr[i] : CalculateEMA(atr[i], emaATR[i - 1], EMAPeriod);
+                }
+
                 Console.WriteLine($"[INFO] Calculated SMA50: {sma50:F2}");
 
                 for (int i = Lookback; i < data.Count; i++)
@@ -76,20 +98,23 @@ namespace StockPatternApi.Helpers
                         continue;
                     }
 
-                    bool strongUptrend = i >= 3 && data.Skip(i - 3).Take(3).All(d => d.Close > sma50);
+                    bool strongUptrend = i >= 3 && data.Skip(i - 3).Take(3).Count(d => d.Close > sma50 * 0.98) >= 2;
                     if (!strongUptrend)
                     {
                         Console.WriteLine($"[SKIP] Date {currentDate:yyyy-MM-dd} failed strong uptrend check.");
                         continue;
                     }
 
-                    bool volContraction = i >= Lookback && Enumerable.Range(i - Lookback + 1, Lookback - 1)
-                        .All(j =>
+                    bool volContraction = i >= Lookback &&
+                        Enumerable.Range(i - Lookback + 1, Lookback - 1)
+                        .Select(j =>
                         {
-                            var windowStart = Math.Max(j - VolumeWindow, 0);
-                            var avgVol = data.Skip(windowStart).Take(VolumeWindow).Average(d => d.Volume);
+                            int windowStart = Math.Max(j - VolumeWindow, 0);
+                            double avgVol = data.Skip(windowStart).Take(VolumeWindow).Average(d => d.Volume);
                             return data[j].Volume < avgVol;
-                        });
+                        })
+                        .Count(result => result) >= (int)(0.6 * (Lookback - 1));
+
                     if (!volContraction)
                     {
                         Console.WriteLine($"[SKIP] Date {currentDate:yyyy-MM-dd} failed volume contraction check.");
@@ -102,6 +127,15 @@ namespace StockPatternApi.Helpers
 
                     double highSlope = CalculateSlope(highs);
                     double lowSlope = CalculateSlope(lows);
+
+                    if (wedgeSlice.Count < Lookback)
+                    {
+                        Console.WriteLine($"[SKIP] Date {currentDate:yyyy-MM-dd} has insufficient data for wedgeSlice.");
+                        continue;
+                    }
+
+                    bool lowerHighs = Enumerable.Range(1, wedgeSlice.Count - 1).All(j => wedgeSlice[j].High <= wedgeSlice[j - 1].High);
+                    bool higherLows = Enumerable.Range(1, wedgeSlice.Count - 1).All(j => wedgeSlice[j].Low >= wedgeSlice[j - 1].Low);
 
                     bool wedge = highSlope < HighSlopeThreshold && lowSlope > LowSlopeThreshold;
                     if (!wedge)
@@ -119,11 +153,17 @@ namespace StockPatternApi.Helpers
                     double slope = CalculateSlope(highs);
                     double intercept = avgY - slope * avgX;
                     double resistance = slope * Lookback + intercept;
+
+                    double middleLine = data.Skip(i - KeltnerEMAPeriod).Take(KeltnerEMAPeriod).Average(d => d.Close);
+                    double upperBand = middleLine + (KeltnerMultiplier * emaATR[i]);
+                    bool breakout = data[i].Close > upperBand;
+
                     double breakoutPrice = resistance * 1.002;
 
                     string signal = compression < 0.05 ? "A+ Wedge Setup"
                                     : compression < 0.1 ? "Good Wedge Setup"
                                     : "Wedge Pattern Detected";
+                    if (breakout) signal += " with Keltner Breakout";
 
                     Console.WriteLine($"[DETECTED] Date {currentDate:yyyy-MM-dd} Signal: {signal}, Compression: {compression:P2}, Resistance: {resistance:F2}, BreakoutPrice: {breakoutPrice:F2}");
 
@@ -141,7 +181,14 @@ namespace StockPatternApi.Helpers
                         Signal = signal,
                         ResistanceLevel = Math.Round(resistance, 2),
                         BreakoutPrice = Math.Round(breakoutPrice, 2),
-                        IsFinalized = false
+                        IsFinalized = false,
+                        Compression = Math.Round(compression, 4),
+                        HighSlope = Math.Round(highSlope, 4),
+                        LowSlope = Math.Round(lowSlope, 4),
+                        LowerHighs = lowerHighs,
+                        HigherLows = higherLows,
+                        KeltnerBreakout = breakout,
+                        SmoothedATR = Math.Round(emaATR[i], 4)
                     });
                 }
 
@@ -150,5 +197,4 @@ namespace StockPatternApi.Helpers
             }
         }
     }
-    #endregion
 }
