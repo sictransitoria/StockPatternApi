@@ -1,8 +1,6 @@
 # Build artifacts
-bin/
-obj/
-**/bin/
-**/obj/
+StockPatternApi/bin
+StockPatternApi/obj
 StockPatternApi/Models/Keys.cs
 appsettings.json
 appsettings.Development.json
