@@ -42,7 +42,7 @@ namespace StockPatternApi.Controllers
                         .Select(s => s.Date)
                         .ToHashSet();
 
-                    var setups = Functions.WedgePatternDetector.Detect(ticker.ToUpper(), stockHistory, existingSetups);
+                    var setups = Algorithm.WedgePatternDetector.Detect(ticker.ToUpper(), stockHistory, existingSetups);
                     if (setups != null && setups.Count > 0)
                         allSetups.AddRange(setups);
                 }
@@ -56,7 +56,7 @@ namespace StockPatternApi.Controllers
                 {
                     dbContext.SPA_StockSetups.AddRange(latestSetups);
                     await dbContext.SaveChangesAsync();
-                    // emailService.SendEmail(latestSetups);
+                    emailService.SendEmail(latestSetups);
                 }
 
                 return latestSetups.Count > 0
@@ -77,32 +77,34 @@ namespace StockPatternApi.Controllers
             {
                 try
                 {
-                    var dailyUrl = $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={API_KEY}";
-                    // var intradayUrl = $"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={ticker}&interval=60min&outputsize=full&apikey={API_KEY}";
-                    var response = await httpClient.GetStringAsync(dailyUrl);
-                    var json = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(response);
+                    DateTime endDate = DateTime.Now;
+                    var intradaySetupUrl = $"https://financialmodelingprep.com/api/v3/historical-chart/30min/{ticker}?from={startDate:yyyy-MM-dd}&to={endDate:yyyy-MM-dd}&apikey={API_KEY}";
+                    var response = await httpClient.GetStringAsync(intradaySetupUrl);
+                    var json = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(response);
 
-                    if (json == null || !json.ContainsKey("Time Series (Daily)"))
-                        throw new Exception("Invalid response from Alpha Vantage.");
+                    if (json == null || json.Count == 0)
+                    {
+                        throw new Exception("Invalid response from Financial Modeling Prep.");
+                    }
 
-                    var timeSeries = json["Time Series (Daily)"].EnumerateObject()
-                        .Select(x => new
-                        {
-                            Date = DateTime.Parse(x.Name),
-                            Data = x.Value
-                        })
-                        .Where(x => x.Date >= startDate)
+                    var timeSeries = json
+                        .Where(x => x.ContainsKey("date") &&
+                                    x.ContainsKey("close") &&
+                                    x.ContainsKey("high") &&
+                                    x.ContainsKey("low") &&
+                                    x.ContainsKey("volume") &&
+                                    DateTime.TryParse(x["date"].GetString(), out var date) && date >= startDate)
+
                         .Select(x => new GetHistoricalData
                         {
-                            Date = x.Date,
-                            Close = double.Parse(x.Data.GetProperty("4. close").GetString()),
-                            High = double.Parse(x.Data.GetProperty("2. high").GetString()),
-                            Low = double.Parse(x.Data.GetProperty("3. low").GetString()),
-                            Volume = long.Parse(x.Data.GetProperty("5. volume").GetString())
+                            Date = DateTime.Parse(x["date"].GetString()!),
+                            Close = x["close"].GetDouble(),
+                            High = x["high"].GetDouble(),
+                            Low = x["low"].GetDouble(),
+                            Volume = x["volume"].GetInt64()
                         })
                         .OrderBy(x => x.Date)
                         .ToList();
-
                     return timeSeries;
                 }
                 catch
@@ -110,7 +112,6 @@ namespace StockPatternApi.Controllers
                     await Task.Delay(1000);
                 }
             }
-
             throw new Exception("Failed to fetch historical data after multiple attempts.");
         }
         #endregion

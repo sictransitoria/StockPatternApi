@@ -24,8 +24,6 @@ namespace StockPatternApi.Models
         public double Compression { get; set; }
         public double HighSlope { get; set; }
         public double LowSlope { get; set; }
-        public bool LowerHighs { get; set; }
-        public bool HigherLows { get; set; }
         public bool KeltnerBreakout { get; set; }
         public double SmoothedATR { get; set; }
     }

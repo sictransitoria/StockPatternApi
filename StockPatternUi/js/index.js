@@ -34,11 +34,7 @@ $(document).ready(function () {
         };
         if (sold === "yes") {
           const priceSoldAt = $("#priceSoldAtInput").val();
-          if (
-            !priceSoldAt ||
-            isNaN(priceSoldAt) ||
-            parseFloat(priceSoldAt) <= 0
-          ) {
+          if (!priceSoldAt || isNaN(priceSoldAt) || parseFloat(priceSoldAt) <= 0) {
             alert("Please enter a valid price greater than 0.");
             return;
           }
@@ -53,7 +49,12 @@ $(document).ready(function () {
           success: function (response) {
             console.log("Server response:", response);
             $(".loader-container").removeClass("d-none");
-            alert(`Data Saved Successfully! You sold ticker ${rowData.ticker} at ${dataToSave.PriceSoldAt}.`);
+            if (sold === "no") {
+              alert(`Data Saved Successfully! You did not trade ticker ${rowData.ticker}.`);
+            } 
+            else {
+              alert(`Data Saved Successfully! You sold ticker ${rowData.ticker} at ${dataToSave.PriceSoldAt}.`);
+            }
             $("#confirmModal").modal("hide");
             setTimeout(() => {
               location.reload();
