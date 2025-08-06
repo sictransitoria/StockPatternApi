@@ -12,6 +12,7 @@ namespace StockPatternApi.Helpers
         // Tables
         public DbSet<StockSetups> SPA_StockSetups { get; set; }
         public DbSet<FinalResults> SPA_FinalResults { get; set; }
+        public DbSet<JournalEntries> SPA_JournalEntries { get; set; }
 
         // Stored Procedures
         public DbSet<FinalResultsReport> FinalResultsReport { get; set; }

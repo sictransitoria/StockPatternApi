@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Stock Setup Results</title>
+    <title>Surrender Flow Strategy | Setups</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -17,33 +17,6 @@
 
     <!-- Custom CSS -->
     <link href="css/styles.css?v=<?=Date.now()?>" rel="stylesheet">
-    <style>
-        .loader-container {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
 </head>
 
 <body>
@@ -58,10 +31,13 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav ms-auto">
                         <li class="nav-item">
-                            <a class="nav-link active" href="index.html">Wedge Patterns</a>
+                            <a class="nav-link active" href="index.html">Setups</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="reports.html">Reports</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="journal.html">Journal</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="about.html">About</a>
@@ -85,11 +61,12 @@
         <div class="text-center my-4">
             <button class="btn btn-success" id="getStockSetups">Get Stock Setups</button>
         </div>
+
         <div class="loader-container" id="getStockSetupsLoader">
             <div class="loader"></div>
         </div>
         <div id="table-container" class="table-responsive">
-            <table class="table table-bordered table-striped">
+            <table class="table table-bordered table-striped renderTableData">
                 <thead class="table-dark">
                     <tr>
                         <th>Ticker</th>

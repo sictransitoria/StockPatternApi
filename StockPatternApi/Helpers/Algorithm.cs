@@ -164,7 +164,7 @@ namespace StockPatternApi.Helpers
                     });
                     Console.WriteLine($"Added setup for {ticker} on {currentDate}");
                 }
-                Console.WriteLine($"Total setups detected: {results.Count}");
+                Console.WriteLine($"Total setups detected for {ticker}: {results.Count}");
                 return results;
             }
         }

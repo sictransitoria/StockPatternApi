@@ -33,11 +33,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseCors("AllowLocalFrontend"); // Apply CORS policy
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

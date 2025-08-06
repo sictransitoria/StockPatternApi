@@ -134,6 +134,24 @@ namespace StockPatternApi.Controllers
                 return StatusCode(500, $"Error fetching setups: {ex.Message}");
             }
         }
+
+        [HttpGet("getAllJournalEntries")]
+        public IActionResult GetAllJournalEntries()
+        {
+            try
+            {
+                var journalEntries = dbContext.SPA_JournalEntries
+                    .Where(s => s.IsActive)
+                    .OrderByDescending(s => s.Date)
+                    .ToList();
+
+                return journalEntries.Count > 0 ? Ok(journalEntries) : NotFound("No journal entries found.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error fetching setups: {ex.Message}");
+            }
+        }
         #endregion
 
         #region POST calls
@@ -170,6 +188,17 @@ namespace StockPatternApi.Controllers
             {
                 return StatusCode(500, "Error saving closing price. Error Message: " + ex.Message);
             }
+        }
+
+        [HttpPost("saveToJournalEntries")]
+        public async Task<IActionResult> SaveToJournalEntries([FromBody] JournalEntries journalEntry)
+        {
+            if (string.IsNullOrEmpty(journalEntry.EntryBody) || string.IsNullOrEmpty(journalEntry.EntrySubject))
+                return BadRequest("Please review your entry. You haven't filled out what's required.");
+
+            dbContext.SPA_JournalEntries.Add(journalEntry);
+            await dbContext.SaveChangesAsync();
+            return CreatedAtAction(nameof(SaveToJournalEntries), new { id = journalEntry.Id }, journalEntry);
         }
         #endregion
 

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Stock Setup Results</title>
+    <title>Surrender Flow Strategy | Journal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -16,8 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=TikTok+Sans:opsz,wght@12..36,300..900&display=swap"
         rel="stylesheet">
-    <link href="css/styles.css?v=<?=Date.now()?>" rel="stylesheet">
-
+        
     <!-- Custom CSS -->
     <link href="css/styles.css?v=<?=Date.now()?>" rel="stylesheet">
 </head>
@@ -40,30 +39,36 @@
                             <a class="nav-link" href="reports.html">Reports</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="journal.html">Journal</a>
+                            <a class="nav-link active" href="journal.html">Journal</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="about.html">About</a>
+                            <a class="nav-link" href="about.html">About</a>
                         </li>
+
                     </ul>
                 </div>
             </div>
         </nav>
-        <h1 class="mainTitle mb-4">About</h1>
-        <p class="lead">
-            This platform provides technical traders and analysts with automatically detected stock wedge patterns based
-            on historical market data.
-            The goal is simple: cut through the noise and present clean, actionable setups driven by repeatable
-            technical conditions.
-        </p>
-        <p class="lead">
-            Whether you're scanning for breakouts or monitoring volume trends, this tool offers a quick snapshot of
-            potential trading opportunities.
-        </p>
-        <p class="lead">
-            It is maintained by Surrender Flow Strategy with an emphasis on reliability, clarity, and practical
-            utility.
-        </p>
+        <h1 class="mainTitle mb-4">Pain is Part of the Process.</h1>
+
+        <div class="mb-4">
+            <input class="form-control" id="journalHeader" rows="1" placeholder="Enter Your Header Here."></input>
+            <br>
+            <textarea class="form-control" id="journalBody" rows="6"
+                placeholder="Enter Your Journal Entry Here."></textarea>
+            <div class="text-muted text-end">
+                <span id="charCount">0</span>/500 characters
+            </div>
+            <br>
+            <button class="btn btn-success mt-2" style="margin: 0 auto; display: flex;"
+                onclick="addJournalEntry()">Submit</button>
+        </div>
+
+        <hr class="horizontalLine">
+
+        <div id="journalEntries" class="mt-4">
+
+        </div>
 
         <footer class="bg-dark text-white text-center py-3 mt-4">
             <p class="mb-0">&copy; <span id="getCurrentYear"></span> Surrender Flow Strategy. All rights reserved.</p>
@@ -75,8 +80,7 @@
 
     <!-- Custom scripts -->
     <script src="js/global.js?v=<?=Date.now()?>"></script>
-    <script src="js/about.js?v=<?=Date.now()?>"></script>
-
+    <script src="js/journal.js?v=<?=Date.now()?>"></script>
 </body>
 
 </html>

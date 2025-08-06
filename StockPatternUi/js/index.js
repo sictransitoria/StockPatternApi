@@ -1,4 +1,4 @@
-// Main JavaScript file for Stock Pattern API UI
+// Index JavaScript file
 
 $(document).ready(function () {
   if (!$("#modalStockDetails").length) {
@@ -64,9 +64,11 @@ $(document).ready(function () {
             console.error("Error details:", xhr);
             if (xhr.status === 404) {
               alert("Stock setup not found.");
-            } else if (xhr.status === 400) {
+            } 
+            else if (xhr.status === 400) {
               alert("Invalid data: " + xhr.responseText);
-            } else {
+            } 
+            else {
               alert("Error saving data: " + xhr.responseText);
             }
           },
@@ -104,7 +106,7 @@ $(document).ready(function () {
 
 function getAllSetups(baseURL) {
   const webMethod = baseURL + "/api/Stock/getAllExistingSetups";
-
+  $("#getStockSetupsLoader").show();
   $.ajax({
     type: "GET",
     url: webMethod,
@@ -115,7 +117,7 @@ function getAllSetups(baseURL) {
         if (!item.isFinalized) {
           rows += "<tr class='stockSetupID_" + item.id + "'>";
           rows += "<td>" + item.ticker + "</td>";
-          rows += "<td>" + new Date(item.date).toLocaleDateString() + "</td>";
+          rows += "<td>" + new Date(item.date).toLocaleString() + "</td>";
           rows += "<td>" + item.close.toFixed(2) + "</td>";
           rows += "<td>" + item.high.toFixed(2) + "</td>";
           rows += "<td>" + item.low.toFixed(2) + "</td>";
@@ -137,9 +139,13 @@ function getAllSetups(baseURL) {
         console.log("No setups found (404)");
         $("#setupCount").text("0");
         $("#stockSetupTableBody").html("");
-      } else {
+      } 
+      else {
         console.error("Processing Error:", xhr.status, xhr.responseText);
       }
+    },
+    complete: function () {
+      $("#getStockSetupsLoader").hide();
     },
   });
 }
