@@ -26,5 +26,6 @@ namespace StockPatternApi.Models
         public double LowSlope { get; set; }
         public bool KeltnerBreakout { get; set; }
         public double SmoothedATR { get; set; }
+        public double StopLoss { get; set; }
     }
 }

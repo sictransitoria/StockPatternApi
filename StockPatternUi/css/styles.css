@@ -47,3 +47,12 @@ body {
   border: 2px solid green;
   border-radius: 5px;
 }
+
+#loadMoreBtn {
+    display: block;
+    margin: 0 auto;
+}
+
+#falsePositiveDiv {
+  margin: 0px 20px 20px 20px;
+}

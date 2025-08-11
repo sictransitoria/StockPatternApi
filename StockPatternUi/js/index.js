@@ -31,6 +31,7 @@ $(document).ready(function () {
         const dataToSave = {
           StockSetupId: rowData.stockSetupId,
           IsActive: sold === "yes" ? true : false,
+          IsFalsePositive: $("#falsePositiveCheck").is(":checked")
         };
         if (sold === "yes") {
           const priceSoldAt = $("#priceSoldAtInput").val();
@@ -40,14 +41,13 @@ $(document).ready(function () {
           }
           dataToSave.PriceSoldAt = parseFloat(priceSoldAt).toFixed(2);
         }
-        console.log("Data to save:", dataToSave);
+
         $.ajax({
           url: baseURL + "/api/Stock/saveToFinalResults",
           type: "POST",
           contentType: "application/json",
           data: JSON.stringify(dataToSave),
           success: function (response) {
-            console.log("Server response:", response);
             $(".loader-container").removeClass("d-none");
             if (sold === "no") {
               alert(`Data Saved Successfully! You did not trade ticker ${rowData.ticker}.`);
@@ -80,6 +80,8 @@ $(document).ready(function () {
   });
   $("#soldSelect").on("change", function () {
     const priceInputContainer = $("#priceInputContainer");
+    const falsePositiveDiv = $("#falsePositiveDiv");
+    falsePositiveDiv.css("display", this.value === "no" ? "block" : "none");
     priceInputContainer.css("display", this.value === "yes" ? "block" : "none");
   });
   $("#getStockSetups").on("click", function () {

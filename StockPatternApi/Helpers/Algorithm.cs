@@ -62,8 +62,9 @@ namespace StockPatternApi.Helpers
 
         public class WedgePatternDetector
         {
-            private const int VolumeWindow = 15;
+            private const int VolumeWindow = 20;
             private const int Lookback = 7;
+            private const int UptrendLookback = 20; // Longer lookback for uptrend confirmation
             private const double HighSlopeThreshold = -0.1;
             private const double LowSlopeThreshold = 0.3;
             private const int ATRPeriod = 7;
@@ -75,17 +76,15 @@ namespace StockPatternApi.Helpers
             {
                 var results = new List<StockSetups>();
                 DateTime scanCutoff = GetMostRecentTradingDay(0);
-                Console.WriteLine($"Scan cutoff date: {scanCutoff}, Data count: {data.Count}");
 
-                if (data.Count < Lookback + VolumeWindow + ATRPeriod)
+                if (data.Count < Lookback + VolumeWindow + ATRPeriod + UptrendLookback)
                 {
-                    Console.WriteLine("Insufficient data for pattern detection");
                     return results;
                 }
 
                 double sma50 = data.TakeLast(50).Average(d => d.Close);
-                Console.WriteLine($"SMA50: {sma50}");
 
+                // ATR + Smoothed ATR
                 double[] atr = new double[data.Count];
                 double[] emaATR = new double[data.Count];
                 for (int i = ATRPeriod; i < data.Count; i++)
@@ -97,49 +96,79 @@ namespace StockPatternApi.Helpers
                 for (int i = Lookback; i < data.Count; i++)
                 {
                     var currentDate = data[i].Date;
-                    Console.WriteLine($"Processing date: {currentDate}");
 
-                    if (existingSetups.Contains(currentDate) || currentDate < scanCutoff ||
-                        !(i >= 3 && data.Skip(i - 3).Take(3).Count(d => d.Close > sma50 * 0.95) >= 2) ||
-                        !(i >= Lookback && i >= VolumeWindow && data[i].Volume < data.Skip(i - VolumeWindow).Take(VolumeWindow).Average(d => d.Volume)))
+                    if (existingSetups.Contains(currentDate) || currentDate < scanCutoff)
                     {
-                        Console.WriteLine($"Skipping date {currentDate}: Conditions not met");
                         continue;
                     }
 
+                    // --- Strong Uptrend Check ---
+                    var uptrendSlice = data.Skip(i - UptrendLookback).Take(UptrendLookback)
+                                           .Select((d, idx) => new SlopeVariables { X = idx, Y = d.Close })
+                                           .ToList();
+                    double closeSlope = CalculateSlope(uptrendSlice);
+
+                    if (closeSlope <= 0 || data[i].Close < sma50) 
+                    {
+                        continue;
+                    }
+
+                    // --- Volume Decreasing Check ---
+                    var volSlice = data.Skip(i - Lookback).Take(Lookback)
+                                       .Select((d, idx) => new SlopeVariables { X = idx, Y = d.Volume })
+                                       .ToList();
+
+                    double volSlope = CalculateSlope(volSlice);
+                    {
+                        if (volSlope >= 0) // must be trending down
+                            continue;
+                    }
+
+                    // --- Wedge shape: Lower highs + higher lows ---
                     var wedgeSlice = data.Skip(i - Lookback).Take(Lookback).ToList();
                     var highs = wedgeSlice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.High }).ToList();
                     var lows = wedgeSlice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.Low }).ToList();
                     double highSlope = CalculateSlope(highs);
                     double lowSlope = CalculateSlope(lows);
-                    Console.WriteLine($"High slope: {highSlope}, Low slope: {lowSlope}");
 
-                    if (wedgeSlice.Count < Lookback || !(highSlope < HighSlopeThreshold && lowSlope > LowSlopeThreshold))
+                    if (!(highSlope < HighSlopeThreshold && lowSlope > LowSlopeThreshold))
                     {
-                        Console.WriteLine("Wedge pattern conditions not met");
                         continue;
                     }
 
-                    double high = wedgeSlice.Max(d => d.High);
-                    double low = wedgeSlice.Min(d => d.Low);
-                    double compression = high > 0 ? (high - low) / high : 0;
-                    Console.WriteLine($"Compression: {compression}");
-
+                    // --- Resistance line for breakout ---
                     double avgX = highs.Average(p => p.X);
                     double avgY = highs.Average(p => p.Y);
                     double slope = CalculateSlope(highs);
                     double intercept = avgY - slope * avgX;
                     double resistance = slope * Lookback + intercept;
 
+                    // --- Keltner Channel breakout ---
                     double middleLine = data.Skip(i - KeltnerEMAPeriod).Take(KeltnerEMAPeriod).Average(d => d.Close);
                     double upperBand = middleLine + (KeltnerMultiplier * emaATR[i]);
 
-                    bool breakout = data[i].Close > upperBand * 1.01;
-                    double breakoutPrice = resistance * 1.01;
+                    bool breakout = data[i].Close > resistance * 1.01 && data[i].Close > upperBand * 1.01;
+
+                    // --- Breakout Volume Confirmation ---
+                    double avgVolRecent = data.Skip(i - VolumeWindow).Take(VolumeWindow).Average(d => d.Volume);
+
+                    if (breakout && data[i].Volume < avgVolRecent) // must break out with strong volume
+                    {
+                        breakout = false;
+                    }
+
+                    // --- Compression measure ---
+                    double high = wedgeSlice.Max(d => d.High);
+                    double low = wedgeSlice.Min(d => d.Low);
+                    double compression = high > 0 ? (high - low) / high : 0;
+
+                    // --- Stop-loss calculation ---
+                    double swingLow = wedgeSlice.Min(d => d.Low);
+                    double stopLoss = swingLow - emaATR[i];
+                    stopLoss = Math.Round(stopLoss, 2);
 
                     string signal = compression < 0.03 ? "A+ Wedge Setup" : compression < 0.06 ? "Good Wedge Setup" : "Wedge Pattern Detected";
                     if (breakout) signal += " with Keltner Breakout";
-                    Console.WriteLine($"Signal: {signal}, Breakout: {breakout}");
 
                     results.Add(new StockSetups
                     {
@@ -149,22 +178,21 @@ namespace StockPatternApi.Helpers
                         High = data[i].High,
                         Low = data[i].Low,
                         Volume = data[i].Volume,
-                        VolMA = data.Skip(i - VolumeWindow).Take(VolumeWindow).Average(d => d.Volume),
+                        VolMA = avgVolRecent,
                         Trend = true,
                         Setup = true,
                         Signal = signal,
                         ResistanceLevel = Math.Round(resistance, 2),
-                        BreakoutPrice = Math.Round(breakoutPrice, 2),
+                        BreakoutPrice = Math.Round(resistance * 1.01, 2),
                         IsFinalized = false,
                         Compression = Math.Round(compression, 4),
                         HighSlope = Math.Round(highSlope, 4),
                         LowSlope = Math.Round(lowSlope, 4),
                         KeltnerBreakout = breakout,
-                        SmoothedATR = Math.Round(emaATR[i], 4)
+                        SmoothedATR = Math.Round(emaATR[i], 4),
+                        StopLoss = stopLoss
                     });
-                    Console.WriteLine($"Added setup for {ticker} on {currentDate}");
                 }
-                Console.WriteLine($"Total setups detected for {ticker}: {results.Count}");
                 return results;
             }
         }

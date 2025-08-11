@@ -12,5 +12,6 @@ namespace StockPatternApi.Models
         public DateTime DateUpdated { get; set; }
         public double PriceSoldAt { get; set; }
         public bool IsActive { get; set; }
+        public bool IsFalsePositive { get; set; }
     }
 }

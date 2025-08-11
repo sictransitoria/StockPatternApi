@@ -168,7 +168,8 @@ namespace StockPatternApi.Controllers
                     StockSetupId = data.StockSetupId,
                     DateUpdated = DateTime.Now,
                     PriceSoldAt = data.PriceSoldAt,
-                    IsActive = data.IsActive
+                    IsActive = data.IsActive,
+                    IsFalsePositive = data.IsFalsePositive
                 };
 
                 dbContext.SPA_FinalResults.Add(finalResult);

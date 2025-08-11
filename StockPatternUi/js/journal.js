@@ -62,10 +62,10 @@ function getAllJournalEntries(baseURL) {
 
 function addJournalEntry() {
   const webMethod = baseURL + "/api/Stock/saveToJournalEntries";
-  const entrySubject = document.getElementById("journalHeader").value;
-  const entryBody = document.getElementById("journalBody").value;
+  const entrySubject = document.getElementById("journalHeader");
+  const entryBody = document.getElementById("journalBody");
 
-  if (entryBody.trim() && entrySubject.trim()) {
+  if (entryBody.value.trim() && entrySubject.value.trim()) {
     $("#getStockSetupsLoader").show();
     $.ajax({
       url: webMethod,
@@ -73,8 +73,8 @@ function addJournalEntry() {
       contentType: "application/json",
       data: JSON.stringify({
         Date: new Date().toISOString(),
-        EntrySubject: entrySubject,
-        EntryBody: entryBody,
+        EntrySubject: entrySubject.value,
+        EntryBody: entryBody.value,
         IsActive: true,
       }),
       success: function (response) {
@@ -89,8 +89,10 @@ function addJournalEntry() {
         `;
         const journalEntries = document.getElementById("journalEntries");
         journalEntries.insertBefore(entryDiv, journalEntries.firstChild);
-        document.getElementById("journalHeader").value = "";
-        document.getElementById("journalBody").value = "";
+        entrySubject.value = "";
+        entryBody.value = "";
+        entrySubject.style.border = "";
+        entryBody.style.border = "";
       },
       error: function () {
         alert("Failed to save journal entry.");
@@ -102,5 +104,7 @@ function addJournalEntry() {
   } 
   else {
     alert("Please fill out both the header and body.");
+    if (!entrySubject.value.trim()) entrySubject.style.border = "2px solid red";
+    if (!entryBody.value.trim()) entryBody.style.border = "2px solid red";
   }
 }

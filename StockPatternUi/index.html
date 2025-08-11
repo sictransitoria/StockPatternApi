@@ -57,6 +57,20 @@
                 <li>Lower highs + higher lows</li>
                 <li>Volume decreasing</li>
             </ul>
+            <strong>Enter:</strong>
+            <ul>
+                <li>Enter when price breaks out above the wedge resistance on strong volume</li>
+            </ul>
+            <strong>Exit:</strong>
+            <ul>
+                <li>Take profit at the next resistance or if momentum fades.</li>
+            </ul>
+            <strong>Execution:</strong>
+            <ul>
+                <li>Patience to wait for a clean setup.</li>
+                <li>Risk control so one bad trade doesn’t hurt you</li>
+                <li>Consistency to trade the same way every time</li>
+            </ul>
         </div>
         <div class="text-center my-4">
             <button class="btn btn-success" id="getStockSetups">Get Stock Setups</button>
@@ -107,6 +121,12 @@
                                 id="priceSoldAtInput" required>
                         </div>
                     </div>
+                    <!-- <div class="mb-3"> -->
+                    <div class="form-check" id="falsePositiveDiv" style="display: none;">
+                        <input type="checkbox" class="form-check-input" id="falsePositiveCheck">
+                        <label class="form-check-label" for="falsePositiveCheck">False Positive</label>
+                    </div>
+                    <!-- </div> -->
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="button" class="btn btn-success" id="saveButton">Save</button>

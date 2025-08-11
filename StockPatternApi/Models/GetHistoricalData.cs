@@ -17,5 +17,6 @@
         public bool DecVol { get; set; }
         public bool Setup { get; set; }
         public bool Trend { get; set; }
+        public double Open { get; internal set; }
     }
 }

@@ -44,7 +44,6 @@
                         <li class="nav-item">
                             <a class="nav-link" href="about.html">About</a>
                         </li>
-
                     </ul>
                 </div>
             </div>
@@ -52,9 +51,9 @@
         <h1 class="mainTitle mb-4">Pain is Part of the Process.</h1>
 
         <div class="mb-4">
-            <input class="form-control" id="journalHeader" rows="1" placeholder="Enter Your Header Here."></input>
+            <input class="form-control" id="journalHeader" placeholder="Enter Your Header Here."></input>
             <br>
-            <textarea class="form-control" id="journalBody" rows="6"
+            <textarea class="form-control" id="journalBody" rows="6" maxlength="500"
                 placeholder="Enter Your Journal Entry Here."></textarea>
             <div class="text-muted text-end">
                 <span id="charCount">0</span>/500 characters
@@ -67,8 +66,10 @@
         <hr class="horizontalLine">
 
         <div id="journalEntries" class="mt-4">
-
+            <!-- Journal entries will be appended here -->
         </div>
+
+        <button class="btn btn-success mt-3" id="loadMoreBtn" onclick="loadMoreEntries()">Load More (+)</button>
 
         <footer class="bg-dark text-white text-center py-3 mt-4">
             <p class="mb-0">&copy; <span id="getCurrentYear"></span> Surrender Flow Strategy. All rights reserved.</p>
@@ -81,6 +82,9 @@
     <!-- Custom scripts -->
     <script src="js/global.js?v=<?=Date.now()?>"></script>
     <script src="js/journal.js?v=<?=Date.now()?>"></script>
+    <script>
+        document.getElementById('getCurrentYear').textContent = new Date().getFullYear();
+    </script>
 </body>
 
 </html>

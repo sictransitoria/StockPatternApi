@@ -12,5 +12,6 @@ namespace StockPatternApi.Models.Reports
         public double AvgReturnPct { get; set; }
         public double BestTradePct { get; set; }
         public double WorstTradePct { get; set; }
+        public int FalsePositivesCount { get; set; }
     }
 }
