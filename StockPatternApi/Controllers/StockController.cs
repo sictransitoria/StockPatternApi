@@ -18,7 +18,7 @@ namespace StockPatternApi.Controllers
 
         #region GET Stock Setups
         [HttpGet("getStockSetups")]
-        public async Task<IActionResult> GetBatchSetups([FromQuery] string[] tickers, [FromQuery] int lookback = 10)
+        public async Task<IActionResult> GetStockSetups([FromQuery] string[] tickers, [FromQuery] int lookback = 10)
         {
             try
             {
@@ -38,7 +38,7 @@ namespace StockPatternApi.Controllers
                         continue;
 
                     var existingSetups = dbContext.SPA_StockSetups
-                        .Where(s => s.Ticker == ticker)
+                        .Where(s => s.Ticker == ticker && !s.IsFinalized)
                         .Select(s => s.Date)
                         .ToHashSet();
 

@@ -20,57 +20,41 @@ namespace StockPatternApi.Helpers
                 if (today.DayOfWeek != DayOfWeek.Saturday && today.DayOfWeek != DayOfWeek.Sunday)
                     days++;
             }
-            Console.WriteLine($"Most recent trading day for {daysBack} days back: {today.Date}");
             return today.Date;
         }
 
         public static double CalculateSlope(List<SlopeVariables> points)
         {
-            if (points.Count < 2)
-            {
-                Console.WriteLine("Insufficient points for slope calculation");
-                return 0;
-            }
+            if (points.Count < 2) return 0;
             double avgX = points.Average(p => p.X);
             double avgY = points.Average(p => p.Y);
             double numerator = points.Sum(p => (p.X - avgX) * (p.Y - avgY));
             double denominator = points.Sum(p => Math.Pow(p.X - avgX, 2));
-            double slope = denominator == 0 ? 0 : numerator / denominator;
-            Console.WriteLine($"Slope calculated: {slope}");
-            return slope;
+            return denominator == 0 ? 0 : numerator / denominator;
         }
 
         public static double CalculateATR(List<GetHistoricalData> data, int index, int period)
         {
-            if (index < period)
-            {
-                Console.WriteLine($"Insufficient data for ATR at index {index}");
-                return 0;
-            }
-            double atr = data.Skip(index - period).Take(period)
+            if (index < period) return 0;
+            return data.Skip(index - period).Take(period)
                 .Average(d => Math.Max(d.High - d.Low, Math.Max(Math.Abs(d.High - d.Close), Math.Abs(d.Low - d.Close))));
-            Console.WriteLine($"ATR at index {index}: {atr}");
-            return atr;
         }
 
         public static double CalculateEMA(double current, double previousEMA, int period)
         {
-            double ema = (current * (2.0 / (1 + period))) + (previousEMA * (1 - 2.0 / (1 + period)));
-            Console.WriteLine($"EMA calculated: {ema}");
-            return ema;
+            return (current * (2.0 / (1 + period))) + (previousEMA * (1 - 2.0 / (1 + period)));
         }
 
         public class WedgePatternDetector
         {
             private const int VolumeWindow = 20;
             private const int Lookback = 7;
-            private const int UptrendLookback = 20; // Longer lookback for uptrend confirmation
+            private const int UptrendLookback = 20;
             private const double HighSlopeThreshold = -0.1;
             private const double LowSlopeThreshold = 0.3;
+            private const double ParallelSlopeThreshold = 0.05; // For flag detection
             private const int ATRPeriod = 7;
             private const int EMAPeriod = 3;
-            private const int KeltnerEMAPeriod = 10;
-            private const double KeltnerMultiplier = 2.5;
 
             public static List<StockSetups> Detect(string ticker, List<GetHistoricalData> data, HashSet<DateTime> existingSetups)
             {
@@ -78,9 +62,7 @@ namespace StockPatternApi.Helpers
                 DateTime scanCutoff = GetMostRecentTradingDay(0);
 
                 if (data.Count < Lookback + VolumeWindow + ATRPeriod + UptrendLookback)
-                {
                     return results;
-                }
 
                 double sma50 = data.TakeLast(50).Average(d => d.Close);
 
@@ -96,79 +78,56 @@ namespace StockPatternApi.Helpers
                 for (int i = Lookback; i < data.Count; i++)
                 {
                     var currentDate = data[i].Date;
+                    if (existingSetups.Contains(currentDate) || currentDate < scanCutoff) continue;
 
-                    if (existingSetups.Contains(currentDate) || currentDate < scanCutoff)
-                    {
-                        continue;
-                    }
-
-                    // --- Strong Uptrend Check ---
+                    // 1. Strong Uptrend Check
                     var uptrendSlice = data.Skip(i - UptrendLookback).Take(UptrendLookback)
                                            .Select((d, idx) => new SlopeVariables { X = idx, Y = d.Close })
                                            .ToList();
                     double closeSlope = CalculateSlope(uptrendSlice);
+                    if (closeSlope <= 0 || data[i].Close < sma50) continue;
 
-                    if (closeSlope <= 0 || data[i].Close < sma50) 
-                    {
-                        continue;
-                    }
-
-                    // --- Volume Decreasing Check ---
+                    // 2. Volume Decreasing Check
                     var volSlice = data.Skip(i - Lookback).Take(Lookback)
                                        .Select((d, idx) => new SlopeVariables { X = idx, Y = d.Volume })
                                        .ToList();
-
                     double volSlope = CalculateSlope(volSlice);
-                    {
-                        if (volSlope >= 0) // must be trending down
-                            continue;
-                    }
+                    if (volSlope >= 0) continue;
 
-                    // --- Wedge shape: Lower highs + higher lows ---
-                    var wedgeSlice = data.Skip(i - Lookback).Take(Lookback).ToList();
-                    var highs = wedgeSlice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.High }).ToList();
-                    var lows = wedgeSlice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.Low }).ToList();
+                    // 3. Pattern Shape
+                    var slice = data.Skip(i - Lookback).Take(Lookback).ToList();
+                    var highs = slice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.High }).ToList();
+                    var lows = slice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.Low }).ToList();
                     double highSlope = CalculateSlope(highs);
                     double lowSlope = CalculateSlope(lows);
 
-                    if (!(highSlope < HighSlopeThreshold && lowSlope > LowSlopeThreshold))
-                    {
-                        continue;
-                    }
+                    bool isWedge = (highSlope < HighSlopeThreshold && lowSlope > LowSlopeThreshold);
+                    bool isFlag = (Math.Abs(highSlope) < ParallelSlopeThreshold && Math.Abs(lowSlope) < ParallelSlopeThreshold);
+                    if (!isWedge && !isFlag) continue;
 
-                    // --- Resistance line for breakout ---
+                    // Resistance (for info only)
                     double avgX = highs.Average(p => p.X);
                     double avgY = highs.Average(p => p.Y);
                     double slope = CalculateSlope(highs);
                     double intercept = avgY - slope * avgX;
                     double resistance = slope * Lookback + intercept;
 
-                    // --- Keltner Channel breakout ---
-                    double middleLine = data.Skip(i - KeltnerEMAPeriod).Take(KeltnerEMAPeriod).Average(d => d.Close);
-                    double upperBand = middleLine + (KeltnerMultiplier * emaATR[i]);
-
-                    bool breakout = data[i].Close > resistance * 1.01 && data[i].Close > upperBand * 1.01;
-
-                    // --- Breakout Volume Confirmation ---
+                    // Avg Volume
                     double avgVolRecent = data.Skip(i - VolumeWindow).Take(VolumeWindow).Average(d => d.Volume);
 
-                    if (breakout && data[i].Volume < avgVolRecent) // must break out with strong volume
-                    {
-                        breakout = false;
-                    }
-
-                    // --- Compression measure ---
-                    double high = wedgeSlice.Max(d => d.High);
-                    double low = wedgeSlice.Min(d => d.Low);
+                    // Compression
+                    double high = slice.Max(d => d.High);
+                    double low = slice.Min(d => d.Low);
                     double compression = high > 0 ? (high - low) / high : 0;
 
-                    // --- Stop-loss calculation ---
-                    double swingLow = wedgeSlice.Min(d => d.Low);
+                    // Stop-loss info
+                    double swingLow = slice.Min(d => d.Low);
                     double stopLoss = swingLow - emaATR[i];
                     stopLoss = Math.Round(stopLoss, 2);
 
-                    string signal = compression < 0.03 ? "A+ Wedge Setup" : compression < 0.06 ? "Good Wedge Setup" : "Wedge Pattern Detected";
-                    if (breakout) signal += " with Keltner Breakout";
+                    string patternType = isWedge ? "Wedge" : "Flag";
+                    string signal = compression < 0.03 ? $"A+ {patternType} Setup" :
+                                    compression < 0.06 ? $"Good {patternType} Setup" : $"{patternType} Pattern Detected";
 
                     results.Add(new StockSetups
                     {
@@ -188,7 +147,6 @@ namespace StockPatternApi.Helpers
                         Compression = Math.Round(compression, 4),
                         HighSlope = Math.Round(highSlope, 4),
                         LowSlope = Math.Round(lowSlope, 4),
-                        KeltnerBreakout = breakout,
                         SmoothedATR = Math.Round(emaATR[i], 4),
                         StopLoss = stopLoss
                     });
