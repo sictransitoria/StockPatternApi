@@ -18,12 +18,12 @@ namespace StockPatternApi.Controllers
 
         #region GET Stock Setups
         [HttpGet("getStockSetups")]
-        public async Task<IActionResult> GetStockSetups([FromQuery] string[] tickers, [FromQuery] int lookback = 10)
+        public async Task<IActionResult> GetStockSetups([FromQuery] string[] tickers, [FromQuery] int lookback = 12)
         {
             try
             {
                 var allSetups = new List<StockSetups>();
-                var emailService = new EmailService();
+                var sendMailNotifcation = new EmailService();
                 var symbols = (tickers != null && tickers.Length != 0) ? tickers : StockSymbols.Tickers;
 
                 if (symbols == null || symbols.Length == 0)
@@ -31,32 +31,51 @@ namespace StockPatternApi.Controllers
 
                 DateTime startDate = DateTime.UtcNow.AddDays(-(lookback + 50));
 
+                // Check for existing unfinalized setups
+                var unfinalizedSetups = dbContext.SPA_StockSetups
+                    .Where(s => !s.IsFinalized)
+                    .Select(s => s.Ticker)
+                    .ToHashSet();
+
                 foreach (var ticker in symbols)
                 {
+                    // Skip if there’s an unfinalized setup for this ticker
+                    if (unfinalizedSetups.Contains(ticker)) continue;
+
                     var stockHistory = await GetHistoricalData(ticker.ToUpper(), startDate);
-                    if (stockHistory == null || stockHistory.Count == 0)
-                        continue;
+                    if (stockHistory == null || stockHistory.Count == 0) continue;
 
                     var existingSetups = dbContext.SPA_StockSetups
-                        .Where(s => s.Ticker == ticker && !s.IsFinalized)
+                        .Where(s => s.Ticker == ticker)
                         .Select(s => s.Date)
                         .ToHashSet();
 
                     var setups = Algorithm.WedgePatternDetector.Detect(ticker.ToUpper(), stockHistory, existingSetups);
                     if (setups != null && setups.Count > 0)
+                    {
                         allSetups.AddRange(setups);
+                    }
                 }
 
+                // Group by Ticker and select the latest setup per ticker
                 var latestSetups = allSetups
                     .GroupBy(s => s.Ticker)
                     .Select(g => g.OrderByDescending(x => x.Date).First())
                     .ToList();
 
-                if (latestSetups.Count > 0)
+                var existing = dbContext.SPA_StockSetups
+                    .Select(s => new { s.Ticker, s.Date })
+                    .ToHashSet();
+
+                var newSetups = latestSetups
+                    .Where(s => !existing.Contains(new { s.Ticker, s.Date }))
+                    .ToList();
+
+                if (newSetups.Count > 0)
                 {
-                    dbContext.SPA_StockSetups.AddRange(latestSetups);
+                    dbContext.SPA_StockSetups.AddRange(newSetups);
                     await dbContext.SaveChangesAsync();
-                    emailService.SendEmail(latestSetups);
+                    sendMailNotifcation.SendEmail(latestSetups);
                 }
 
                 return latestSetups.Count > 0

@@ -1,9 +1,11 @@
 # Build artifacts
 StockPatternApi/bin
 StockPatternApi/obj
-StockPatternApi/.config
+/StockPatternApi/.config
 StockPatternApi/Models/Keys.cs
+/StockPatternApi/StockPatternApi.csproj.user
 appsettings.json
 appsettings.Development.json
 .vs
 .vscode
+StockPatternApi.code-workspace

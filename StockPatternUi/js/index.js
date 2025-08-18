@@ -42,6 +42,8 @@ $(document).ready(function () {
           dataToSave.PriceSoldAt = parseFloat(priceSoldAt).toFixed(2);
         }
 
+        let selectedFalsePositive = $("#falsePositiveCheck").is(":checked");
+
         $.ajax({
           url: baseURL + "/api/Stock/saveToFinalResults",
           type: "POST",
@@ -49,9 +51,12 @@ $(document).ready(function () {
           data: JSON.stringify(dataToSave),
           success: function (response) {
             $(".loader-container").removeClass("d-none");
-            if (sold === "no") {
+            if (sold === "no" && selectedFalsePositive) {
+              alert(`Data Saved Successfully! You labeled ${rowData.ticker} as a false positive.`);
+            }
+            else if (sold === "yes") {
               alert(`Data Saved Successfully! You did not trade ticker ${rowData.ticker}.`);
-            } 
+            }
             else {
               alert(`Data Saved Successfully! You sold ticker ${rowData.ticker} at ${dataToSave.PriceSoldAt}.`);
             }
