@@ -26,5 +26,9 @@ namespace StockPatternApi.Models
         public double LowSlope { get; set; }
         public double SmoothedATR { get; set; }
         public double StopLoss { get; set; }
+        public double TakeProfit { get; set; }
+        public double RiskPerShare { get; set; }
+        public double RewardPerShare { get; set; }
+        public double RewardToRisk { get; set; }
     }
 }

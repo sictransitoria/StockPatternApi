@@ -54,7 +54,7 @@ $(document).ready(function () {
             if (sold === "no" && selectedFalsePositive) {
               alert(`Data Saved Successfully! You labeled ${rowData.ticker} as a false positive.`);
             }
-            else if (sold === "yes") {
+            else if (sold === "no") {
               alert(`Data Saved Successfully! You did not trade ticker ${rowData.ticker}.`);
             }
             else {
@@ -125,11 +125,11 @@ function getAllSetups(baseURL) {
           rows += "<tr class='stockSetupID_" + item.id + "'>";
           rows += "<td>" + item.ticker + "</td>";
           rows += "<td>" + new Date(item.date).toLocaleString() + "</td>";
-          rows += "<td>" + item.close.toFixed(2) + "</td>";
-          rows += "<td>" + item.high.toFixed(2) + "</td>";
-          rows += "<td>" + item.low.toFixed(2) + "</td>";
-          rows += "<td>" + item.resistanceLevel.toFixed(2) + "</td>";
-          rows += "<td>" + item.breakoutPrice.toFixed(2) + "</td>";
+          rows += "<td>" + item.riskPerShare.toFixed(2) + "</td>";
+          rows += "<td>" + item.rewardPerShare.toFixed(2) + "</td>";
+          rows += "<td><strong>" + item.rewardToRisk.toFixed(2) + "</td>";
+          rows += "<td>" + item.takeProfit.toFixed(2) + "</td>";
+          rows += "<td>" + item.stopLoss.toFixed(2) + "</td>";
           rows += "<td>" + item.signal + "</td>";
           rows += "</tr>";
         }
