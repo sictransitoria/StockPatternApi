@@ -47,19 +47,25 @@
             </div>
         </nav>
         <h1 class="mainTitle mb-4">Winning Pattern Detections (<span id="setupCount"></span> Available)</h1>
-        <p class="lead">This page displays the results of stock pattern detections, specifically focusing on wedge
+        <p class="lead">This page displays the results of stock pattern detections, specifically focusing on wedge, pennant
             and flag patterns.</p>
         <div id="setupDescription" class="mb-4">
             <strong>Winning Pattern Criteria:</strong>
             <ul>
                 <li>Strong uptrend</li>
-                <li>Consolidation into a wedge or flag</li>
+                <li>Consolidation into a wedge, pennant or flag</li>
                 <li>Lower highs + higher lows</li>
                 <li>Volume decreasing</li>
             </ul>
+            <strong>For a Strong Setup:</strong>
+            <ul>
+                <li>Low RiskPerShare (tight stop)</li>
+                <li>High RewardPerShare (room to run)</li>
+                <li>High RewardToRisk (ideally ≥ 2.0)</li>
+            </ul>
             <strong>Enter:</strong>
             <ul>
-                <li>Enter when price breaks out above the wedge or flag resistance on strong volume</li>
+                <li>Enter when price breaks out above the wedge, pennant or flag resistance on strong volume</li>
             </ul>
             <strong>Exit:</strong>
             <ul>
@@ -121,12 +127,12 @@
                                 id="priceSoldAtInput" required>
                         </div>
                     </div>
-                    <!-- <div class="mb-3"> -->
+
                     <div class="form-check" id="falsePositiveDiv" style="display: none;">
                         <input type="checkbox" class="form-check-input" id="falsePositiveCheck">
                         <label class="form-check-label" for="falsePositiveCheck">False Positive</label>
                     </div>
-                    <!-- </div> -->
+
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="button" class="btn btn-success" id="saveButton">Save</button>
@@ -134,6 +140,9 @@
                 </div>
             </div>
         </div>
+
+        <button class="back-to-top btn btn-success" id="backToTop">Back to Top</button>
+
         <footer class="bg-dark text-white text-center py-3 mt-4">
             <p class="mb-0">© <span id="getCurrentYear"></span> Surrender Flow Strategy. All rights reserved.</p>
         </footer>

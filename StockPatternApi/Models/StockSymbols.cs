@@ -92,7 +92,7 @@
             "PNC",
             "RTX",
             "SBUX",
-            "SO",
+            "SHOP",
             "T",
             "TGT",
             "TMO",

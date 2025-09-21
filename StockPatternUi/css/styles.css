@@ -6,10 +6,6 @@ body {
   font-style: normal;
 }
 
-.container {
-  max-width: 850px;
-}
-
 .loader-container {
   display: flex;
   justify-content: center;
@@ -55,4 +51,11 @@ body {
 
 #falsePositiveDiv {
   margin: 0px 20px 20px 20px;
+}
+
+.back-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
 }

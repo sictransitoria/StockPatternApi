@@ -5,7 +5,9 @@ $(document).ready(function () {
     console.error("Element with ID 'modalStockDetails' not found in DOM");
     return;
   }
+
   getAllSetups(baseURL);
+  
   $(document).on("click", "#stockSetupTableBody tr", function () {
     const rowData = {
       ticker: $(this).children().eq(0).text(),

@@ -142,8 +142,11 @@ namespace StockPatternApi.Controllers
             try
             {
                 var setups = dbContext.SPA_StockSetups
-                    .Where(s => !s.IsFinalized)
+                    .Where(s => !s.IsFinalized && s.RewardToRisk > 2.0)
                     .OrderByDescending(s => s.Date)
+                    .ThenByDescending(s  => s.RewardToRisk)
+                    .ThenByDescending(s  => s.RiskPerShare)
+                    .ThenByDescending(s  => s.RewardPerShare)
                     .ToList();
 
                 return setups.Count > 0 ? Ok(setups) : NotFound("No setups found.");
