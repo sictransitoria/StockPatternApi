@@ -75,7 +75,12 @@ namespace StockPatternApi.Controllers
                 {
                     dbContext.SPA_StockSetups.AddRange(newSetups);
                     await dbContext.SaveChangesAsync();
-                    sendMailNotifcation.SendEmail(latestSetups);
+
+                    var emailListOfSetups = string.Join("\n", latestSetups
+                        .OrderByDescending(s => s.Date)
+                        .Select(s => $"{s.Ticker}: {s.Date}"));
+
+                    sendMailNotifcation.SendEmail(emailListOfSetups);
                 }
 
                 return latestSetups.Count > 0
@@ -131,7 +136,7 @@ namespace StockPatternApi.Controllers
                     await Task.Delay(1000);
                 }
             }
-            throw new Exception("Failed to fetch historical data after multiple attempts.");
+            throw new Exception($"Failed to fetch {ticker} historical data after multiple attempts.");
         }
         #endregion
 
@@ -142,11 +147,11 @@ namespace StockPatternApi.Controllers
             try
             {
                 var setups = dbContext.SPA_StockSetups
-                    .Where(s => !s.IsFinalized && s.RewardToRisk > 2.0)
+                    .Where(s => !s.IsFinalized)
                     .OrderByDescending(s => s.Date)
-                    .ThenByDescending(s  => s.RewardToRisk)
-                    .ThenByDescending(s  => s.RiskPerShare)
-                    .ThenByDescending(s  => s.RewardPerShare)
+                    .ThenByDescending(s => s.RewardToRisk)
+                    .ThenByDescending(s => s.RiskPerShare)
+                    .ThenByDescending(s => s.RewardPerShare)
                     .ToList();
 
                 return setups.Count > 0 ? Ok(setups) : NotFound("No setups found.");

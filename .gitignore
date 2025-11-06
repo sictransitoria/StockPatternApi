@@ -9,3 +9,4 @@ appsettings.Development.json
 .vs
 .vscode
 StockPatternApi.code-workspace
+/StockPatternUi/js/global.js

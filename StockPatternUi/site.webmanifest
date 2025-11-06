@@ -1,7 +1,14 @@
 {
-  "name": "",
-  "short_name": "",
+  "name": "SurrenderFlowStrategy",
+  "short_name": "SFS",
+  "start_url": "/",
+  "display": "standalone",
   "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    },
     {
       "src": "/android-chrome-192x192.png",
       "sizes": "192x192",
@@ -12,8 +19,5 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
-  "display": "standalone"
+  ]
 }

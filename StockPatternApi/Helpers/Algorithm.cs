@@ -23,7 +23,6 @@ namespace StockPatternApi.Helpers
             return denominator == 0 ? 0 : numerator / denominator;
         }
 
-        // Compute Wilder ATR, then EMA-smoothed ATR
         public static double[] ComputeEmaATR(List<GetHistoricalData> data, int atrPeriod = 7, int emaPeriod = 3)
         {
             int n = data.Count;
@@ -135,8 +134,7 @@ namespace StockPatternApi.Helpers
             private const double ParallelSlopeThreshold = 0.08;
 
             private const double MinCloseSlope = 0.004;
-
-            private const double MinCompressionPct = 0.04;
+            private const double MinCompressionPct = 0.03;
             private const double RequiredDropFactor = 1.05;
             private const double MaxLastBarSpikeFactor = 2.0;
             private const double MaxSecondHalfCV = 1.20;
@@ -145,6 +143,22 @@ namespace StockPatternApi.Helpers
             private const double BreakoutVolVsBase = 1.00;
 
             private const double FallbackTick = 0.01;
+
+            private static bool HasStrongPole(int i, List<GetHistoricalData> data, int lookback = 12)
+            {
+                const int maxBars = 6;
+                const double minPct = 0.07;  // 7% min
+                int start = i - lookback - maxBars;
+                if (start < 0) return false;
+
+                var slice = data.Skip(start).Take(maxBars).ToList();
+                double low = slice.Min(d => d.Low);
+                double high = slice.Max(d => d.High);
+                double movePct = (high - low) / low;
+
+                int green = slice.Count(b => b.Close > b.Open);
+                return movePct >= minPct && green >= 2;
+            }
 
             public static List<StockSetups> Detect(string ticker, List<GetHistoricalData> data, HashSet<DateTime> existingSetups)
             {
@@ -174,7 +188,7 @@ namespace StockPatternApi.Helpers
                     if (i - UptrendLookback + 1 < 0)
                         continue;
 
-                    // Step 1: Check for valid uptrend
+                    // BALANCED UPTREND
                     var uptrendSlice = data.Skip(i - UptrendLookback + 1)
                         .Take(UptrendLookback)
                         .Select((d, idx) => new SlopeVariables { X = idx, Y = d.Close })
@@ -184,7 +198,7 @@ namespace StockPatternApi.Helpers
                     if (closeSlope < MinCloseSlope || currentBar.Close < sma50)
                         continue;
 
-                    // Step 2: Check volume decrease
+                    // Volume decrease
                     var volSlice = data.Skip(i - Lookback + 1).Take(Lookback).Select(d => (double)d.Volume).ToList();
                     if (volSlice.Count < Lookback)
                         continue;
@@ -202,7 +216,7 @@ namespace StockPatternApi.Helpers
                         lastBarVol > firstHalfAvg * MaxLastBarSpikeFactor)
                         continue;
 
-                    // Step 3: Identify pattern
+                    // Pattern slice
                     var slice = data.Skip(i - Lookback + 1).Take(Lookback).ToList();
                     var highs = slice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.High }).ToList();
                     var lows = slice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.Low }).ToList();
@@ -227,26 +241,29 @@ namespace StockPatternApi.Helpers
                     bool hasLowerHighs = highEnd < highStart;
                     bool hasHigherLows = lowEnd > lowStart;
 
-                    bool isWedge = hasLowerHighs && hasHigherLows &&
+                    // REQUIRE STRONG POLE
+                    bool hasPole = HasStrongPole(i, data);
+
+                    bool isWedge = hasPole && hasLowerHighs && hasHigherLows &&
                                    highSlope < HighSlopeThreshold &&
                                    lowSlope > LowSlopeThreshold &&
                                    compressionPct >= MinCompressionPct;
 
-                    bool isPennant = hasLowerHighs && hasHigherLows &&
-                                     highSlope < 0 &&
-                                     lowSlope > 0 &&
-                                     compressionPct >= MinCompressionPct + 0.02;
+                    bool isPennant = hasPole && hasLowerHighs && hasHigherLows &&
+                                     highSlope < 0 && lowSlope > 0 &&
+                                     compressionPct >= MinCompressionPct + 0.01;
 
                     bool lastIsNewHighClose = slice.Take(Lookback - 1).Max(d => d.Close) < slice[^1].Close;
 
-                    bool isFlag = Math.Abs(highSlope - lowSlope) < ParallelSlopeThreshold &&
+                    bool isFlag = hasPole &&
+                                  Math.Abs(highSlope - lowSlope) < ParallelSlopeThreshold &&
                                   compressionPct >= 0.03 &&
                                   !lastIsNewHighClose;
 
                     if (!isWedge && !isFlag && !isPennant)
                         continue;
 
-                    // Step 4: Setup confirmed, now evaluate RR
+                    // RR & breakout
                     double avgX = highs.Average(p => p.X);
                     double avgY = highs.Average(p => p.Y);
                     double slope = CalculateSlope(highs);
@@ -281,8 +298,8 @@ namespace StockPatternApi.Helpers
                     double takeProfit = Math.Round(nextResistance, 4);
                     double riskPerShare = Math.Max(tick, entry - stopLoss);
                     double rewardPerShare = Math.Max(tick, takeProfit - entry);
-                    double rr = rewardPerShare / riskPerShare;
-                    bool passesRR = rr >= 1.5;
+                    double rewardToRisk = rewardPerShare / riskPerShare;
+                    bool passesRR = rewardToRisk >= 1.5;
 
                     if (currentBar.Close < (currentBar.High + currentBar.Low) / 2)
                         continue;
@@ -294,17 +311,14 @@ namespace StockPatternApi.Helpers
                     if (intradayPos < 0.6)
                         continue;
 
-                    // Step 5: Log setup
                     string patternType = isWedge ? "Wedge" : isFlag ? "Flag" : "Pennant";
-
-                    string quality = compressionPct >= 0.20 ? "A+" :
-                                     compressionPct >= 0.08 ? "Good" : "OK";
+                    string quality = compressionPct >= 0.20 ? "A+" : compressionPct >= 0.08 ? "Good" : "OK";
 
                     string signal;
                     if (brokeOut && passesRR)
                         signal = $"{quality} {patternType} Breakout";
-                    else if (!passesRR)
-                        signal = $"Low RR {patternType} Setup";
+                    //else if (rewardToRisk < 1.5)
+                    //    continue;
                     else
                         signal = $"{patternType} Setup";
 
@@ -331,7 +345,7 @@ namespace StockPatternApi.Helpers
                         TakeProfit = takeProfit,
                         RiskPerShare = Math.Round(riskPerShare, 4),
                         RewardPerShare = Math.Round(rewardPerShare, 4),
-                        RewardToRisk = Math.Round(rr, 2)
+                        RewardToRisk = Math.Round(rewardToRisk, 2)
                     });
                 }
 

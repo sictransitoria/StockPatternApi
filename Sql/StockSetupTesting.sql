@@ -24,7 +24,7 @@ SELECT
     SmoothedATR,
 	IsFinalized
 FROM  [StockPatternApi].[dbo].[SPA_StockSetups]
-WHERE IsFinalized = 0
+WHERE IsFinalized = 0 AND RewardToRisk >= 1.5
 ORDER BY [Date] DESC, RewardToRisk DESC, RewardPerShare DESC, RiskPerShare DESC;
 
 /*
@@ -33,6 +33,6 @@ TRUNCATE TABLE [StockPatternApi].[dbo].[SPA_FinalResults];
 TRUNCATE TABLE [StockPatternApi].[dbo].[SPA_StockSetups];
 
 DELETE FROM [StockPatternApi].[dbo].[SPA_StockSetups]
- WHERE IsFinalized = 0;
+ WHERE IsFinalized = 0 AND RewardToRisk < 1.5
 
 */
