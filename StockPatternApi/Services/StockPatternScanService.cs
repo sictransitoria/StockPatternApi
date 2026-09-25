@@ -26,7 +26,7 @@ public sealed class ScanResult
     public int DuplicateCount { get; init; }
     public List<ScanError> Errors { get; init; } = [];
     public string? OutPath { get; init; }
-    /// <summary>Raw detector hits before VRTX-quality publish filters (deduped by ticker+day).</summary>
+    /// <summary>Raw detector hits before quality publish filters (deduped by ticker+day).</summary>
     public int RawSetupCount { get; init; }
 }
 
@@ -38,7 +38,7 @@ public sealed class ScanError
 
 /// <summary>
 /// Shared StockPatternAPIBot scan pipeline: Yahoo 30m bars, blue-chip universe,
-/// 5-session as-of detect, VRTX-quality publish filters, SPA_StockSetups persist, email.
+/// 5-session as-of detect, quality publish filters, SPA_StockSetups persist, email.
 /// </summary>
 public sealed class StockPatternScanService
 {
@@ -150,7 +150,7 @@ public sealed class StockPatternScanService
         var lookbackStart = DateTime.UtcNow.Date.AddDays(-(options.Lookback + 50));
 
         Console.WriteLine(
-            $"StockPatternAPIBot VRTX-quality falling-wedge scan starting. Tickers={distinct.Length}. Interval=30m. As-of last {AsOfSessionCount} sessions. Publish cap={PublishCap}. Source=Yahoo chart API.");
+            $"StockPatternAPIBot high-quality falling-wedge scan starting. Tickers={distinct.Length}. Interval=30m. As-of last {AsOfSessionCount} sessions. Publish cap={PublishCap}. Source=Yahoo chart API.");
 
         foreach (var ticker in distinct)
         {
@@ -210,7 +210,7 @@ public sealed class StockPatternScanService
                 }
                 else if (dedupedRaw.Count > 0)
                 {
-                    Console.WriteLine($"  {ticker}: raw={dedupedRaw.Count} published=0 (filtered by VRTX-quality gates)");
+                    Console.WriteLine($"  {ticker}: raw={dedupedRaw.Count} published=0 (filtered by quality gates)");
                 }
                 else
                 {
@@ -230,7 +230,7 @@ public sealed class StockPatternScanService
         var latestSetups = RankAndCapPublished(DeduplicateByTickerDay(allSetups), PublishCap);
 
         Console.WriteLine(
-            $"VRTX-quality filter: raw(deduped)={rawLatestSetups.Count} -> published={latestSetups.Count} (cap {PublishCap}).");
+            $"Quality filter: raw(deduped)={rawLatestSetups.Count} -> published={latestSetups.Count} (cap {PublishCap}).");
 
         if (options.WriteJson && outPath != null)
         {
@@ -238,7 +238,7 @@ public sealed class StockPatternScanService
             {
                 generatedAt = DateTime.Now,
                 source = "StockPatternAPIBot via Yahoo Finance chart API (not Financial Modeling Prep)",
-                pattern = "Falling Wedge VRTX-quality (washout-reclaim + breakout vol>=1.5xMA + actionable window + failed-break; freefall rejected)",
+                pattern = "Falling Wedge (washout-reclaim quality + breakout vol>=1.5xMA + actionable window + failed-break; freefall rejected)",
                 interval = "30m",
                 mode = $"as-of last {AsOfSessionCount} sessions; publish held Breakouts (incl RR soft) + A+/Good forming (R:R>={FormingMinRewardToRisk}, last {FormingMaxAgeSessions} sessions); rank Breakouts then Date then R:R; top {PublishCap}",
                 tickerCount = distinct.Length,

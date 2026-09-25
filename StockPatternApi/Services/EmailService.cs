@@ -46,7 +46,7 @@ namespace StockPatternApi.Services
                 subject = $"StockPatternAPIBot Setups — {datePart} ({count})";
 
             string effectiveSubtitle = string.IsNullOrWhiteSpace(subtitle)
-                ? "VRTX-quality falling wedge"
+                ? "washout-reclaim quality falling wedge"
                 : subtitle.Trim();
 
             string htmlBody = BuildSetupsDigestHtml(list, generatedAt, effectiveSubtitle);
@@ -99,7 +99,7 @@ namespace StockPatternApi.Services
             {
                 sb.Append("<div style=\"text-align:center;padding:40px 16px;color:#6c757d;\">");
                 sb.Append("<div style=\"font-size:18px;font-weight:600;color:#343a40;margin-bottom:8px;\">No setups published</div>");
-                sb.Append("<div style=\"font-size:14px;line-height:1.5;\">The scan completed successfully, but no VRTX-quality falling wedge setups met the publish criteria this run. Check back after the next market session.</div>");
+                sb.Append("<div style=\"font-size:14px;line-height:1.5;\">The scan completed successfully, but no washout-reclaim quality falling wedge setups met the publish criteria this run. Check back after the next market session.</div>");
                 sb.Append("</div>");
             }
             else
