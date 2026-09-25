@@ -68,18 +68,18 @@ body {
 
 /* ===== Setups page (email digest parity) ===== */
 
-body.page-setups {
+body.page-app {
   margin: 0;
   background: #e9ecef;
 }
 
-.setups-page-wrap {
+.site-page-wrap {
   padding: 24px 12px;
   display: flex;
   justify-content: center;
 }
 
-.setups-card {
+.site-card {
   width: 100%;
   max-width: 1040px;
   background: #ffffff;
@@ -89,19 +89,19 @@ body.page-setups {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-.setups-accent {
+.site-accent {
   height: 4px;
   background: #198754;
   line-height: 0;
   font-size: 0;
 }
 
-.setups-header {
+.site-header {
   background: #2b2b2b;
   padding: 20px 24px;
 }
 
-.setups-header-top {
+.site-header-top {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -109,24 +109,24 @@ body.page-setups {
   gap: 16px;
 }
 
-.setups-brand {
+.site-brand {
   color: #ffffff;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.3px;
 }
 
-.setups-subtitle {
+.site-subtitle {
   color: #d0d0d0;
   font-size: 14px;
   margin-top: 4px;
 }
 
-.setups-badge-wrap {
+.site-badge-wrap {
   margin-top: 12px;
 }
 
-.setups-badge {
+.site-badge {
   display: inline-block;
   background: #198754;
   color: #ffffff;
@@ -136,22 +136,22 @@ body.page-setups {
   border-radius: 12px;
 }
 
-.setups-nav .nav-link {
+.site-nav .nav-link {
   color: #d0d0d0 !important;
   font-size: 14px;
   padding: 0.35rem 0.75rem;
 }
 
-.setups-nav .nav-link:hover,
-.setups-nav .nav-link.active {
+.site-nav .nav-link:hover,
+.site-nav .nav-link.active {
   color: #ffffff !important;
 }
 
-.setups-nav .navbar-toggler {
+.site-nav .navbar-toggler {
   border-color: rgba(255, 255, 255, 0.35);
 }
 
-.setups-meta {
+.site-meta {
   padding: 16px 24px 8px 24px;
   background: #f8f9fa;
   border-bottom: 1px solid #dee2e6;
@@ -159,7 +159,7 @@ body.page-setups {
   color: #495057;
 }
 
-.setups-body {
+.site-body {
   padding: 20px 24px 8px 24px;
 }
 
@@ -178,7 +178,7 @@ body.page-setups {
   color: #343a40;
 }
 
-.btn-setups-primary {
+.btn-site-primary {
   background-color: #198754;
   border-color: #198754;
   color: #ffffff;
@@ -186,8 +186,8 @@ body.page-setups {
   padding: 0.5rem 1.25rem;
 }
 
-.btn-setups-primary:hover,
-.btn-setups-primary:focus {
+.btn-site-primary:hover,
+.btn-site-primary:focus {
   background-color: #157347;
   border-color: #146c43;
   color: #ffffff;
@@ -264,7 +264,7 @@ body.page-setups {
   margin: 0 auto;
 }
 
-.setups-footer {
+.site-footer {
   padding: 20px 24px 24px 24px;
   text-align: center;
   color: #6c757d;
@@ -273,11 +273,94 @@ body.page-setups {
 }
 
 @media (max-width: 768px) {
-  .setups-header-top {
+  .site-header-top {
     flex-direction: column;
   }
 
-  .setups-nav {
+  .site-nav {
     width: 100%;
   }
+}
+
+/* Shared section titles inside site-body */
+.site-section-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #2b2b2b;
+  margin: 0 0 1rem 0;
+}
+
+.site-section-title + .site-section-title,
+.site-divider + .site-section-title {
+  margin-top: 1.5rem;
+}
+
+.site-divider {
+  border: 0;
+  border-top: 2px solid #198754;
+  border-radius: 5px;
+  margin: 1.75rem 0;
+  opacity: 1;
+}
+
+.site-lead {
+  font-size: 1.05rem;
+  color: #495057;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+/* Journal */
+.journal-composer .form-control {
+  font-size: 0.95rem;
+}
+
+.journal-composer textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.journal-entry {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #ffffff;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.journal-entry .journal-entry-body {
+  padding: 14px 16px;
+}
+
+.journal-entry .journal-entry-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #2b2b2b;
+  margin: 0 0 0.35rem 0;
+}
+
+.journal-entry .journal-entry-text {
+  font-size: 0.92rem;
+  color: #343a40;
+  margin: 0 0 0.5rem 0;
+  white-space: pre-wrap;
+}
+
+.journal-entry .journal-entry-meta {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.btn-site-outline {
+  color: #198754;
+  border-color: #198754;
+  background: #ffffff;
+  font-weight: 600;
+}
+
+.btn-site-outline:hover,
+.btn-site-outline:focus {
+  color: #ffffff;
+  background: #198754;
+  border-color: #198754;
 }

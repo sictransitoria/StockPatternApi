@@ -38,12 +38,12 @@ $(document).ready(function () {
         paginatedEntries.forEach((item) => {
             if (item.isActive) {
                 const entryDiv = document.createElement("div");
-                entryDiv.className = "card mb-2";
+                entryDiv.className = "journal-entry";
                 entryDiv.innerHTML = `
-                    <div class="card-body">
-                        <h5 class="card-title">${item.entrySubject}</h5>
-                        <p class="card-text">${item.entryBody}</p>
-                        <small class="text-muted">Posted on ${new Date(item.date).toLocaleString()}</small>
+                    <div class="journal-entry-body">
+                        <h5 class="journal-entry-title">${item.entrySubject}</h5>
+                        <p class="journal-entry-text">${item.entryBody}</p>
+                        <div class="journal-entry-meta">Posted on ${new Date(item.date).toLocaleString()}</div>
                     </div>
                 `;
                 journalEntries.appendChild(entryDiv); // Append to the end
