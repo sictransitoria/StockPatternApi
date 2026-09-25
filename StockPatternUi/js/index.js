@@ -7,7 +7,7 @@ $(document).ready(function () {
   }
 
   getAllSetups(baseURL);
-  
+
   $(document).on("click", "#stockSetupTableBody tr", function () {
     const rowData = {
       ticker: $(this).children().eq(0).text(),
@@ -71,10 +71,10 @@ $(document).ready(function () {
             console.error("Error details:", xhr);
             if (xhr.status === 404) {
               alert("Stock setup not found.");
-            } 
+            }
             else if (xhr.status === 400) {
               alert("Invalid data: " + xhr.responseText);
-            } 
+            }
             else {
               alert("Error saving data: " + xhr.responseText);
             }
@@ -113,6 +113,18 @@ $(document).ready(function () {
   });
 });
 
+function updateEmptyState(rowCount) {
+  const emptyState = $("#emptyState");
+  const tableContainer = $("#table-container");
+  if (rowCount === 0) {
+    emptyState.removeClass("d-none");
+    tableContainer.addClass("d-none");
+  } else {
+    emptyState.addClass("d-none");
+    tableContainer.removeClass("d-none");
+  }
+}
+
 function getAllSetups(baseURL) {
   const webMethod = baseURL + "/api/Stock/getAllExistingSetups";
   $("#getStockSetupsLoader").show();
@@ -124,14 +136,15 @@ function getAllSetups(baseURL) {
       let rows = "";
       $.each(data, function (index, item) {
         if (!item.isFinalized) {
+          const dateStr = new Date(item.date).toLocaleString();
           rows += "<tr class='stockSetupID_" + item.id + "'>";
-          rows += "<td>" + item.ticker + "</td>";
-          rows += "<td>" + new Date(item.date).toLocaleString() + "</td>";
-          rows += "<td>" + item.riskPerShare.toFixed(2) + "</td>";
-          rows += "<td>" + item.rewardPerShare.toFixed(2) + "</td>";
-          rows += "<td><strong>" + item.rewardToRisk.toFixed(2) + "</td>";
-          rows += "<td>" + item.takeProfit.toFixed(2) + "</td>";
-          rows += "<td>" + item.stopLoss.toFixed(2) + "</td>";
+          rows += "<td class='ticker-cell'>" + item.ticker + "</td>";
+          rows += "<td>" + dateStr + "</td>";
+          rows += "<td class='text-end'>" + Number(item.riskPerShare).toFixed(2) + "</td>";
+          rows += "<td class='text-end'>" + Number(item.rewardPerShare).toFixed(2) + "</td>";
+          rows += "<td class='text-end rr-cell'><strong>" + Number(item.rewardToRisk).toFixed(2) + "</strong></td>";
+          rows += "<td class='text-end'>" + Number(item.takeProfit).toFixed(2) + "</td>";
+          rows += "<td class='text-end'>" + Number(item.stopLoss).toFixed(2) + "</td>";
           rows += "<td>" + item.signal + "</td>";
           rows += "</tr>";
         }
@@ -142,13 +155,15 @@ function getAllSetups(baseURL) {
       const rowCount = tbody.rows.length;
       console.log("Total Setups: " + rowCount);
       document.getElementById("setupCount").innerText = rowCount;
+      updateEmptyState(rowCount);
     },
     error: function (xhr) {
       if (xhr.status === 404) {
         console.log("No setups found (404)");
         $("#setupCount").text("0");
         $("#stockSetupTableBody").html("");
-      } 
+        updateEmptyState(0);
+      }
       else {
         console.error("Processing Error:", xhr.status, xhr.responseText);
       }
