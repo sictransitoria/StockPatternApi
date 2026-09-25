@@ -3,18 +3,16 @@ using Microsoft.EntityFrameworkCore;
 using StockPatternApi.Helpers;
 using StockPatternApi.Models;
 using StockPatternApi.Services;
-using System.Text.Json;
 
 namespace StockPatternApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class StockController(StockPatternDbContext context) : ControllerBase
+    public class StockController(StockPatternDbContext context, StockPatternScanService scanService) : ControllerBase
     {
         #region Stock Controller
-        private readonly string API_KEY = Keys.API_KEY;
-        private readonly HttpClient httpClient = new();
         private readonly StockPatternDbContext dbContext = context;
+        private readonly StockPatternScanService _scanService = scanService;
 
         #region GET Stock Setups
         [HttpGet("getStockSetups")]
@@ -22,121 +20,25 @@ namespace StockPatternApi.Controllers
         {
             try
             {
-                var allSetups = new List<StockSetups>();
-                var sendMailNotifcation = new EmailService();
-                var symbols = (tickers != null && tickers.Length != 0) ? tickers : StockSymbols.Tickers;
-
-                if (symbols == null || symbols.Length == 0)
+                var symbols = (tickers != null && tickers.Length != 0) ? tickers : null;
+                if (symbols == null && (StockSymbols.Tickers == null || StockSymbols.Tickers.Length == 0))
                     return BadRequest("At least one ticker is required.");
 
-                DateTime startDate = DateTime.UtcNow.AddDays(-(lookback + 50));
-
-                // Check for existing unfinalized setups
-                var unfinalizedSetups = dbContext.SPA_StockSetups
-                    .Where(s => !s.IsFinalized)
-                    .Select(s => s.Ticker)
-                    .ToHashSet();
-
-                foreach (var ticker in symbols)
+                var result = await _scanService.ScanAsync(new ScanOptions
                 {
-                    // Skip if there’s an unfinalized setup for this ticker
-                    if (unfinalizedSetups.Contains(ticker)) continue;
+                    Tickers = symbols,
+                    Lookback = lookback,
+                    WriteJson = false
+                });
 
-                    var stockHistory = await GetHistoricalData(ticker.ToUpper(), startDate);
-                    if (stockHistory == null || stockHistory.Count == 0) continue;
-
-                    var existingSetups = dbContext.SPA_StockSetups
-                        .Where(s => s.Ticker == ticker)
-                        .Select(s => s.Date)
-                        .ToHashSet();
-
-                    var setups = Algorithm.WedgePatternDetector.Detect(ticker.ToUpper(), stockHistory, existingSetups);
-                    if (setups != null && setups.Count > 0)
-                    {
-                        allSetups.AddRange(setups);
-                    }
-                }
-
-                // Group by Ticker and select the latest setup per ticker
-                var latestSetups = allSetups
-                    .GroupBy(s => s.Ticker)
-                    .Select(g => g.OrderByDescending(x => x.Date).First())
-                    .ToList();
-
-                var existing = dbContext.SPA_StockSetups
-                    .Select(s => new { s.Ticker, s.Date })
-                    .ToHashSet();
-
-                var newSetups = latestSetups
-                    .Where(s => !existing.Contains(new { s.Ticker, s.Date }))
-                    .ToList();
-
-                if (newSetups.Count > 0)
-                {
-                    dbContext.SPA_StockSetups.AddRange(newSetups);
-                    await dbContext.SaveChangesAsync();
-
-                    var emailListOfSetups = string.Join("\n", latestSetups
-                        .OrderByDescending(s => s.Date)
-                        .Select(s => $"{s.Ticker}: {s.Date}"));
-
-                    sendMailNotifcation.SendEmail(emailListOfSetups);
-                }
-
-                return latestSetups.Count > 0
-                    ? Ok(latestSetups)
+                return result.Setups.Count > 0
+                    ? Ok(result.Setups)
                     : NotFound("No wedge setups found for any ticker.");
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"There was an error returning results. Error Message: {ex.Message}");
             }
-        }
-        #endregion
-
-        #region GET Historical Data
-        private async Task<List<GetHistoricalData>> GetHistoricalData(string ticker, DateTime startDate)
-        {
-            for (int attempt = 0; attempt < 3; attempt++)
-            {
-                try
-                {
-                    DateTime endDate = DateTime.Now;
-                    var intradaySetupUrl = $"https://financialmodelingprep.com/api/v3/historical-chart/30min/{ticker}?from={startDate:yyyy-MM-dd}&to={endDate:yyyy-MM-dd}&apikey={API_KEY}";
-                    var response = await httpClient.GetStringAsync(intradaySetupUrl);
-                    var json = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(response);
-
-                    if (json == null || json.Count == 0)
-                    {
-                        throw new Exception("Invalid response from Financial Modeling Prep.");
-                    }
-
-                    var timeSeries = json
-                        .Where(x => x.ContainsKey("date") &&
-                                    x.ContainsKey("close") &&
-                                    x.ContainsKey("high") &&
-                                    x.ContainsKey("low") &&
-                                    x.ContainsKey("volume") &&
-                                    DateTime.TryParse(x["date"].GetString(), out var date) && date >= startDate)
-
-                        .Select(x => new GetHistoricalData
-                        {
-                            Date = DateTime.Parse(x["date"].GetString()!),
-                            Close = x["close"].GetDouble(),
-                            High = x["high"].GetDouble(),
-                            Low = x["low"].GetDouble(),
-                            Volume = x["volume"].GetInt64()
-                        })
-                        .OrderBy(x => x.Date)
-                        .ToList();
-                    return timeSeries;
-                }
-                catch
-                {
-                    await Task.Delay(1000);
-                }
-            }
-            throw new Exception($"Failed to fetch {ticker} historical data after multiple attempts.");
         }
         #endregion
 

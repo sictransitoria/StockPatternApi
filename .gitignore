@@ -10,3 +10,5 @@ appsettings.Development.json
 .vscode
 StockPatternApi.code-workspace
 /StockPatternUi/js/global.js
+# Bot scan output
+StockPatternAPIBot/

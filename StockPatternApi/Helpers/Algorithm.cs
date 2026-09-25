@@ -1,16 +1,19 @@
-﻿using StockPatternApi.Models;
+using StockPatternApi.Models;
 
 namespace StockPatternApi.Helpers
 {
+    /// <summary>
+    /// Pattern helpers aligned to EnhancedMarket / Trade Pro Elite falling-wedge rules.
+    /// </summary>
     public static class Algorithm
     {
-        public struct SlopeVariables
+        public struct SlopePoint
         {
             public double X { get; set; }
             public double Y { get; set; }
         }
 
-        public static double CalculateSlope(List<SlopeVariables> points)
+        public static double CalculateSlope(List<SlopePoint> points)
         {
             if (points == null || points.Count < 2)
                 return 0;
@@ -23,7 +26,7 @@ namespace StockPatternApi.Helpers
             return denominator == 0 ? 0 : numerator / denominator;
         }
 
-        public static double[] ComputeEmaATR(List<GetHistoricalData> data, int atrPeriod = 7, int emaPeriod = 3)
+        public static double[] ComputeEmaAtr(List<GetHistoricalData> data, int atrPeriod = 7, int emaPeriod = 3)
         {
             int n = data.Count;
             var tr = new double[n];
@@ -37,10 +40,10 @@ namespace StockPatternApi.Helpers
                 else
                 {
                     double prevClose = data[i - 1].Close;
-                    double h_l = data[i].High - data[i].Low;
-                    double h_pc = Math.Abs(data[i].High - prevClose);
-                    double l_pc = Math.Abs(data[i].Low - prevClose);
-                    tr[i] = Math.Max(h_l, Math.Max(h_pc, l_pc));
+                    double hL = data[i].High - data[i].Low;
+                    double hPc = Math.Abs(data[i].High - prevClose);
+                    double lPc = Math.Abs(data[i].Low - prevClose);
+                    tr[i] = Math.Max(hL, Math.Max(hPc, lPc));
                 }
             }
 
@@ -48,34 +51,24 @@ namespace StockPatternApi.Helpers
             if (n < atrPeriod)
                 return atr;
 
-            double seed = tr.Take(atrPeriod).Average();
-            atr[atrPeriod - 1] = seed;
-
+            atr[atrPeriod - 1] = tr.Take(atrPeriod).Average();
             for (int i = atrPeriod; i < n; i++)
-            {
                 atr[i] = ((atr[i - 1] * (atrPeriod - 1)) + tr[i]) / atrPeriod;
-            }
 
             var ema = new double[n];
             double k = 2.0 / (emaPeriod + 1.0);
-
             int start = atrPeriod - 1;
-            for (int i = 0; i < n; i++)
-                ema[i] = 0.0;
-
             if (start < n)
             {
                 ema[start] = atr[start];
                 for (int i = start + 1; i < n; i++)
-                {
                     ema[i] = (atr[i] * k) + (ema[i - 1] * (1.0 - k));
-                }
             }
 
             return ema;
         }
 
-        public static DateTime MostRecentBarDateUtc(List<GetHistoricalData> data)
+        public static DateTime MostRecentBarDate(List<GetHistoricalData> data)
         {
             if (data == null || data.Count == 0)
                 return DateTime.UtcNow.Date;
@@ -85,80 +78,43 @@ namespace StockPatternApi.Helpers
 
         private static bool ContainsTradingDate(HashSet<DateTime> set, DateTime dt)
         {
-            if (set == null)
-                return false;
-
-            var d = dt.Date;
-            return set.Contains(d);
+            return set != null && set.Contains(dt.Date);
         }
 
-        private static double FindNextResistanceLeft(List<GetHistoricalData> data, int idx, double level, int lookback = 80, int pivot = 3)
-        {
-            int start = Math.Max(0, idx - lookback);
-            double res = level;
-
-            for (int i = idx; i >= start + pivot; i--)
-            {
-                bool isPivotHigh = true;
-                for (int k = 1; k <= pivot; k++)
-                {
-                    if (i + k >= data.Count)
-                    {
-                        isPivotHigh = false;
-                        break;
-                    }
-                    if (!(data[i].High > data[i - k].High && data[i].High > data[i + k].High))
-                    {
-                        isPivotHigh = false;
-                        break;
-                    }
-                }
-
-                if (isPivotHigh && data[i].High > level)
-                    res = Math.Max(res, data[i].High);
-            }
-
-            return res;
-        }
-
+        /// <summary>
+        /// Falling wedge detector (PDF Chapter 3 pattern section).
+        /// Geometry: lower highs + lower lows, both slopes down, upper line steeper, converging range.
+        /// Volume: drying up during formation; spike preferred on upside breakout.
+        /// Trade plan: enter on break of upper trendline, stop under wedge low, target = measured move (widest height).
+        /// </summary>
         public class WedgePatternDetector
         {
+            private const int Lookback = 16;
             private const int VolumeWindow = 20;
-            private const int Lookback = 12;
-            private const int UptrendLookback = 24;
-            private const int ATRPeriod = 7;
-            private const int EMAPeriod = 3;
+            private const int AtrPeriod = 7;
+            private const int EmaPeriod = 3;
 
-            private const double HighSlopeThreshold = -0.015;
-            private const double LowSlopeThreshold = 0.02;
-            private const double ParallelSlopeThreshold = 0.08;
+            // Both lines must slope down; upper (highs) must be steeper (more negative) than lower (lows).
+            private const double MaxHighSlope = -0.01;
+            private const double MaxLowSlope = -0.002;
+            private const double MinSlopeSeparation = 0.004; // upper steeper than lower
+            private const double MinCompressionPct = 0.08;
 
-            private const double MinCloseSlope = 0.004;
-            private const double MinCompressionPct = 0.03;
-            private const double RequiredDropFactor = 1.05;
-            private const double MaxLastBarSpikeFactor = 2.0;
-            private const double MaxSecondHalfCV = 1.20;
+            // Volume dry-up during wedge
+            private const double MaxSecondHalfVolRatio = 0.95; // second half avg <= 95% of first half
+            private const double MaxSecondHalfCv = 1.35;
 
-            private const double BreakoutVolVsRecent = 1.10;
-            private const double BreakoutVolVsBase = 1.00;
+            // Breakout confirmation
+            private const double BreakoutVolVsRecent = 1.50; // PDF: real volume expansion on break
+            private const double BreakoutVolVsBase = 1.20;
+            private const double MinRewardToRisk = 2.0; // PDF prefers ~1:3; 2.0 is a practical floor
+
+            // Filter pass: kill micro / junk patterns (CVS-style)
+            private const double MinWedgeHeightAtr = 1.0;   // widest height >= 1x ATR
+            private const double MinRiskPct = 0.005;        // stop distance >= 0.5% of entry
+            private const double MaxRiskPct = 0.025;        // stop distance <= 2.5% of entry (PDF ~1-2%)
 
             private const double FallbackTick = 0.01;
-
-            private static bool HasStrongPole(int i, List<GetHistoricalData> data, int lookback = 12)
-            {
-                const int maxBars = 6;
-                const double minPct = 0.07;  // 7% min
-                int start = i - lookback - maxBars;
-                if (start < 0) return false;
-
-                var slice = data.Skip(start).Take(maxBars).ToList();
-                double low = slice.Min(d => d.Low);
-                double high = slice.Max(d => d.High);
-                double movePct = (high - low) / low;
-
-                int green = slice.Count(b => b.Close > b.Open);
-                return movePct >= minPct && green >= 2;
-            }
 
             public static List<StockSetups> Detect(string ticker, List<GetHistoricalData> data, HashSet<DateTime> existingSetups)
             {
@@ -166,186 +122,181 @@ namespace StockPatternApi.Helpers
                 if (data == null || data.Count == 0)
                     return results;
 
-                DateTime scanCutoff = MostRecentBarDateUtc(data);
-                int requiredMinimum = Math.Max(UptrendLookback, 50) + Lookback + VolumeWindow + ATRPeriod + 2;
+                DateTime scanCutoff = MostRecentBarDate(data);
+                int requiredMinimum = Math.Max(50, Lookback + VolumeWindow + AtrPeriod + 5);
                 if (data.Count < requiredMinimum)
                     return results;
 
-                double sma50 = data.Skip(Math.Max(0, data.Count - 50)).Take(50).Average(d => d.Close);
-                double[] emaATR = ComputeEmaATR(data, ATRPeriod, EMAPeriod);
-
-                if (emaATR == null || emaATR.Length != data.Count)
-                    emaATR = ComputeEmaATR(data, ATRPeriod, EMAPeriod);
+                double[] emaAtr = ComputeEmaAtr(data, AtrPeriod, EmaPeriod);
 
                 for (int i = Lookback; i < data.Count; i++)
                 {
-                    var currentBar = data[i];
-                    var currentDay = currentBar.Date.Date;
+                    var bar = data[i];
+                    var day = bar.Date.Date;
 
-                    if (ContainsTradingDate(existingSetups, currentDay) || currentDay < scanCutoff.Date)
+                    // Same scan window as before: only emit for the most recent session in the series.
+                    if (ContainsTradingDate(existingSetups, day) || day < scanCutoff)
                         continue;
 
-                    if (i - UptrendLookback + 1 < 0)
-                        continue;
-
-                    // BALANCED UPTREND
-                    var uptrendSlice = data.Skip(i - UptrendLookback + 1)
-                        .Take(UptrendLookback)
-                        .Select((d, idx) => new SlopeVariables { X = idx, Y = d.Close })
-                        .ToList();
-                    double closeSlope = CalculateSlope(uptrendSlice);
-
-                    if (closeSlope < MinCloseSlope || currentBar.Close < sma50)
-                        continue;
-
-                    // Volume decrease
-                    var volSlice = data.Skip(i - Lookback + 1).Take(Lookback).Select(d => (double)d.Volume).ToList();
-                    if (volSlice.Count < Lookback)
-                        continue;
-
-                    int half = Lookback / 2;
-                    double firstHalfAvg = volSlice.Take(half).Average();
-                    double secondHalfAvg = volSlice.Skip(half).Take(Lookback - half).Average();
-                    double secondHalfStd = Math.Sqrt(volSlice.Skip(half).Select(v => Math.Pow(v - secondHalfAvg, 2)).Average());
-                    double secondHalfCV = secondHalfAvg > 0 ? secondHalfStd / secondHalfAvg : 1.0;
-                    double lastBarVol = volSlice[^1];
-
-                    if (firstHalfAvg <= 0 ||
-                        secondHalfAvg > firstHalfAvg * RequiredDropFactor ||
-                        secondHalfCV > MaxSecondHalfCV ||
-                        lastBarVol > firstHalfAvg * MaxLastBarSpikeFactor)
-                        continue;
-
-                    // Pattern slice
                     var slice = data.Skip(i - Lookback + 1).Take(Lookback).ToList();
-                    var highs = slice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.High }).ToList();
-                    var lows = slice.Select((d, idx) => new SlopeVariables { X = idx, Y = d.Low }).ToList();
-
-                    double highSlope = CalculateSlope(highs);
-                    double lowSlope = CalculateSlope(lows);
-
-                    if (highSlope > 0 && lowSlope > 0)
+                    if (slice.Count < Lookback)
                         continue;
 
-                    double highStart = highs.First().Y;
-                    double highEnd = highs.Last().Y;
-                    double lowStart = lows.First().Y;
-                    double lowEnd = lows.Last().Y;
+                    // --- PDF geometry: LH + LL, both slopes down, converging, upper steeper ---
+                    var highPts = slice.Select((d, idx) => new SlopePoint { X = idx, Y = d.High }).ToList();
+                    var lowPts = slice.Select((d, idx) => new SlopePoint { X = idx, Y = d.Low }).ToList();
+
+                    double highSlope = CalculateSlope(highPts);
+                    double lowSlope = CalculateSlope(lowPts);
+
+                    double highStart = highPts.First().Y;
+                    double highEnd = highPts.Last().Y;
+                    double lowStart = lowPts.First().Y;
+                    double lowEnd = lowPts.Last().Y;
+
+                    bool hasLowerHighs = highEnd < highStart;
+                    bool hasLowerLows = lowEnd < lowStart;
+
                     double rangeStart = highStart - lowStart;
                     double rangeEnd = highEnd - lowEnd;
-
                     if (rangeStart <= 0)
                         continue;
 
                     double compressionPct = 1.0 - (rangeEnd / rangeStart);
-                    bool hasLowerHighs = highEnd < highStart;
-                    bool hasHigherLows = lowEnd > lowStart;
+                    bool converging = compressionPct >= MinCompressionPct && rangeEnd < rangeStart;
 
-                    // REQUIRE STRONG POLE
-                    bool hasPole = HasStrongPole(i, data);
+                    // Upper trendline steeper downward => highSlope more negative than lowSlope
+                    bool bothDown = highSlope <= MaxHighSlope && lowSlope <= MaxLowSlope && lowSlope < 0;
+                    bool upperSteeper = highSlope < (lowSlope - MinSlopeSeparation);
 
-                    bool isWedge = hasPole && hasLowerHighs && hasHigherLows &&
-                                   highSlope < HighSlopeThreshold &&
-                                   lowSlope > LowSlopeThreshold &&
-                                   compressionPct >= MinCompressionPct;
-
-                    bool isPennant = hasPole && hasLowerHighs && hasHigherLows &&
-                                     highSlope < 0 && lowSlope > 0 &&
-                                     compressionPct >= MinCompressionPct + 0.01;
-
-                    bool lastIsNewHighClose = slice.Take(Lookback - 1).Max(d => d.Close) < slice[^1].Close;
-
-                    bool isFlag = hasPole &&
-                                  Math.Abs(highSlope - lowSlope) < ParallelSlopeThreshold &&
-                                  compressionPct >= 0.03 &&
-                                  !lastIsNewHighClose;
-
-                    if (!isWedge && !isFlag && !isPennant)
+                    if (!(hasLowerHighs && hasLowerLows && bothDown && upperSteeper && converging))
                         continue;
 
-                    // RR & breakout
-                    double avgX = highs.Average(p => p.X);
-                    double avgY = highs.Average(p => p.Y);
-                    double slope = CalculateSlope(highs);
-                    double intercept = avgY - slope * avgX;
+                    // --- PDF: decreasing volume as wedge forms ---
+                    var vols = slice.Select(d => (double)d.Volume).ToList();
+                    int half = Lookback / 2;
+                    double firstHalfAvg = vols.Take(half).Average();
+                    double secondHalfAvg = vols.Skip(half).Average();
+                    if (firstHalfAvg <= 0)
+                        continue;
+
+                    double secondHalfStd = Math.Sqrt(vols.Skip(half).Select(v => Math.Pow(v - secondHalfAvg, 2)).Average());
+                    double secondHalfCv = secondHalfAvg > 0 ? secondHalfStd / secondHalfAvg : 1.0;
+
+                    if (secondHalfAvg > firstHalfAvg * MaxSecondHalfVolRatio || secondHalfCv > MaxSecondHalfCv)
+                        continue;
+
+                    // Upper trendline value at last bar (resistance / breakout line)
+                    double avgX = highPts.Average(p => p.X);
+                    double avgY = highPts.Average(p => p.Y);
+                    double intercept = avgY - highSlope * avgX;
                     int lastIdx = Lookback - 1;
-                    double resistance = slope * lastIdx + intercept;
+                    double resistance = highSlope * lastIdx + intercept;
 
-                    double highMax = slice.Max(d => d.High);
-                    double lowMin = slice.Min(d => d.Low);
-                    double swingLow = slice.Skip(half).Min(d => d.Low);
-                    double atrAtI = (emaATR != null && emaATR.Length > i) ? emaATR[i] : 0;
-                    double priceRange = Math.Max(1e-6, highMax - lowMin);
-                    double tick = currentBar.Close < 5 ? 0.001 : FallbackTick;
-
-                    if (atrAtI <= 0)
-                        atrAtI = Math.Max(priceRange * 0.03, 3 * tick);
-
-                    double volMA = data.Skip(Math.Max(0, i - VolumeWindow + 1)).Take(VolumeWindow).Average(d => d.Volume);
-                    double breakoutBufferPts = Math.Max(tick, 0.20 * atrAtI);
-                    bool strongVolume = currentBar.Volume >= Math.Min(Math.Max(volMA * BreakoutVolVsRecent, firstHalfAvg * BreakoutVolVsBase), Math.Max(volMA, firstHalfAvg) * 2.5);
-                    bool priceBreak = currentBar.Close >= resistance + breakoutBufferPts;
-                    bool brokeOut = priceBreak && strongVolume;
-
-                    double entry = Math.Round(resistance + breakoutBufferPts, 4);
-
-                    double stopLoss = Math.Round(swingLow - Math.Max(0.75 * atrAtI, 2 * tick), 4);
-                    double nextResistance = FindNextResistanceLeft(data, i, resistance);
-
-                    if (nextResistance <= resistance)
-                        nextResistance = highMax + 1.5 * atrAtI;
-
-                    double takeProfit = Math.Round(nextResistance, 4);
-                    double riskPerShare = Math.Max(tick, entry - stopLoss);
-                    double rewardPerShare = Math.Max(tick, takeProfit - entry);
-                    double rewardToRisk = rewardPerShare / riskPerShare;
-                    bool passesRR = rewardToRisk >= 1.5;
-
-                    if (currentBar.Close < (currentBar.High + currentBar.Low) / 2)
+                    double wedgeHigh = slice.Max(d => d.High);
+                    double wedgeLow = slice.Min(d => d.Low);
+                    double widestHeight = rangeStart; // PDF: height at widest point (start of pattern)
+                    if (widestHeight <= 0)
                         continue;
 
-                    if (currentBar.Close <= data[i - 1].Close)
+                    double atr = (emaAtr != null && emaAtr.Length > i) ? emaAtr[i] : 0;
+                    double tick = bar.Close < 5 ? 0.001 : FallbackTick;
+                    if (atr <= 0)
+                        atr = Math.Max((wedgeHigh - wedgeLow) * 0.03, 3 * tick);
+
+                    // (1) Minimum wedge height vs ATR - drops micro measured moves / fake R:R
+                    if (widestHeight < atr * MinWedgeHeightAtr)
                         continue;
 
-                    double intradayPos = (currentBar.Close - currentBar.Low) / Math.Max(1e-6, currentBar.High - currentBar.Low);
-                    if (intradayPos < 0.6)
+                    double volMa = data.Skip(Math.Max(0, i - VolumeWindow + 1)).Take(VolumeWindow).Average(d => d.Volume);
+                    double breakoutBuffer = Math.Max(tick, 0.15 * atr);
+
+                    bool priceBreak = bar.Close >= resistance + breakoutBuffer;
+                    bool volumeSpike =
+                        bar.Volume >= volMa * BreakoutVolVsRecent &&
+                        bar.Volume >= firstHalfAvg * BreakoutVolVsBase;
+
+                    bool brokeOut = priceBreak && volumeSpike;
+
+                    // (3) Failed-break filter: later bars closed back under the breakout line
+                    if (brokeOut)
+                    {
+                        for (int j = i + 1; j < data.Count; j++)
+                        {
+                            if (data[j].Close < resistance)
+                            {
+                                brokeOut = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    // PDF entry: breakout above upper trendline (use buffer for noise)
+                    double entry = Math.Round(resistance + breakoutBuffer, 4);
+
+                    // PDF stop: just below the lowest point of the wedge
+                    double stopLoss = Math.Round(wedgeLow - Math.Max(tick, 0.25 * atr), 4);
+
+                    // PDF target: measured move = widest height projected up from breakout
+                    double takeProfit = Math.Round(entry + widestHeight, 4);
+
+                    double risk = Math.Max(tick, entry - stopLoss);
+                    double reward = Math.Max(tick, takeProfit - entry);
+                    double rr = reward / risk;
+                    bool passesRr = rr >= MinRewardToRisk;
+
+                    // (5) Risk band as % of entry - rejects penny stops and oversized stops
+                    double riskPct = risk / Math.Max(entry, tick);
+                    if (riskPct < MinRiskPct || riskPct > MaxRiskPct)
                         continue;
 
-                    string patternType = isWedge ? "Wedge" : isFlag ? "Flag" : "Pennant";
-                    string quality = compressionPct >= 0.20 ? "A+" : compressionPct >= 0.08 ? "Good" : "OK";
+                    // Prefer decisive bullish breakout bar (close in upper half, green vs prior)
+                    if (bar.Close < (bar.High + bar.Low) / 2.0)
+                        continue;
+                    if (i > 0 && bar.Close <= data[i - 1].Close)
+                        continue;
 
+                    double intradayPos = (bar.Close - bar.Low) / Math.Max(1e-6, bar.High - bar.Low);
+                    if (intradayPos < 0.55)
+                        continue;
+
+                    string quality = compressionPct >= 0.25 && upperSteeper ? "A+" : compressionPct >= 0.12 ? "Good" : "OK";
                     string signal;
-                    if (brokeOut && passesRR)
-                        signal = $"{quality} {patternType} Breakout";
-                    //else if (rewardToRisk < 1.5)
-                    //    continue;
+                    if (brokeOut && passesRr)
+                        signal = $"{quality} Falling Wedge Breakout";
+                    else if (brokeOut)
+                        signal = $"{quality} Falling Wedge Breakout (RR soft)";
                     else
-                        signal = $"{patternType} Setup";
+                        signal = $"{quality} Falling Wedge Setup";
+
+                    // Trend flag: PDF allows reversal OR continuation; mark true if still above SMA50
+                    double sma50 = data.Skip(Math.Max(0, i - 49)).Take(Math.Min(50, i + 1)).Average(d => d.Close);
+                    bool inUptrendContext = bar.Close >= sma50;
 
                     results.Add(new StockSetups
                     {
                         Ticker = ticker,
-                        Date = currentBar.Date,
-                        Close = currentBar.Close,
-                        High = currentBar.High,
-                        Low = currentBar.Low,
-                        Volume = currentBar.Volume,
-                        VolMA = Math.Round(volMA, 2),
-                        Trend = closeSlope >= MinCloseSlope && currentBar.Close >= sma50,
+                        Date = bar.Date,
+                        Close = bar.Close,
+                        High = bar.High,
+                        Low = bar.Low,
+                        Volume = bar.Volume,
+                        VolMA = Math.Round(volMa, 2),
+                        Trend = inUptrendContext,
                         Setup = !brokeOut,
                         Signal = signal,
                         ResistanceLevel = Math.Round(resistance, 4),
                         BreakoutPrice = entry,
-                        IsFinalized = brokeOut && passesRR,
+                        IsFinalized = brokeOut && passesRr,
                         Compression = Math.Round(compressionPct, 4),
                         HighSlope = Math.Round(highSlope, 6),
                         LowSlope = Math.Round(lowSlope, 6),
-                        SmoothedATR = Math.Round(atrAtI, 4),
+                        SmoothedATR = Math.Round(atr, 4),
                         StopLoss = stopLoss,
                         TakeProfit = takeProfit,
-                        RiskPerShare = Math.Round(riskPerShare, 4),
-                        RewardPerShare = Math.Round(rewardPerShare, 4),
-                        RewardToRisk = Math.Round(rewardToRisk, 2)
+                        RiskPerShare = Math.Round(risk, 4),
+                        RewardPerShare = Math.Round(reward, 4),
+                        RewardToRisk = Math.Round(rr, 2)
                     });
                 }
 
