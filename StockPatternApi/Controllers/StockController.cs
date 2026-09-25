@@ -48,8 +48,8 @@ namespace StockPatternApi.Controllers
         {
             try
             {
-                var setups = dbContext.SPA_StockSetups
-                    .Where(s => !s.IsFinalized)
+                // Shared filters: within 24h + exclude inactive FinalResults (IsActive=0).
+                var setups = OpenSetupsQuery.Watchlist(dbContext)
                     .OrderByDescending(s => s.Date)
                     .ThenByDescending(s => s.RewardToRisk)
                     .ThenByDescending(s => s.RiskPerShare)

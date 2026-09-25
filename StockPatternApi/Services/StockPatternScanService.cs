@@ -129,9 +129,8 @@ public sealed class StockPatternScanService
         try
         {
             dbContext = CreateDbContext();
-            var unfinalizedTickerList = await dbContext.SPA_StockSetups
+            var unfinalizedTickerList = await OpenSetupsQuery.Watchlist(dbContext)
                 .AsNoTracking()
-                .Where(s => !s.IsFinalized)
                 .Select(s => s.Ticker)
                 .ToListAsync(cancellationToken);
             unfinalizedTickers = unfinalizedTickerList.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -371,9 +370,8 @@ public sealed class StockPatternScanService
     public async Task EmailOpenUnfinalizedAsync(CancellationToken cancellationToken = default)
     {
         await using var db = CreateDbContext();
-        var setups = await db.SPA_StockSetups
+        var setups = await OpenSetupsQuery.Watchlist(db)
             .AsNoTracking()
-            .Where(s => !s.IsFinalized)
             .OrderByDescending(s => s.Date)
             .ThenByDescending(s => s.RewardToRisk)
             .ToListAsync(cancellationToken);
