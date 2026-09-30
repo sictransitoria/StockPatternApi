@@ -1,4 +1,4 @@
-﻿using StockPatternApi.Models;
+using StockPatternApi.Models;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
@@ -46,7 +46,7 @@ namespace StockPatternApi.Services
                 subject = $"StockPatternAPIBot Setups — {datePart} ({count})";
 
             string effectiveSubtitle = string.IsNullOrWhiteSpace(subtitle)
-                ? "washout-reclaim quality falling wedge"
+                ? "falling wedge breakout with volume confirmation and R:R >= 2.0"
                 : subtitle.Trim();
 
             string htmlBody = BuildSetupsDigestHtml(list, generatedAt, effectiveSubtitle);
@@ -99,7 +99,7 @@ namespace StockPatternApi.Services
             {
                 sb.Append("<div style=\"text-align:center;padding:40px 16px;color:#6c757d;\">");
                 sb.Append("<div style=\"font-size:18px;font-weight:600;color:#343a40;margin-bottom:8px;\">No setups published</div>");
-                sb.Append("<div style=\"font-size:14px;line-height:1.5;\">The scan completed successfully, but no washout-reclaim quality falling wedge setups met the publish criteria this run. Check back after the next market session.</div>");
+                sb.Append("<div style=\"font-size:14px;line-height:1.5;\">The scan completed successfully, but no falling wedge breakout setups with volume confirmation and R:R >= 2.0 met the publish criteria this run. Check back after the next market session.</div>");
                 sb.Append("</div>");
             }
             else

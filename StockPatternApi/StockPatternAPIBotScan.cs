@@ -6,12 +6,16 @@ namespace StockPatternApi;
 /// </summary>
 public static class StockPatternAPIBotScan
 {
-    public static async Task RunAsync()
+    public static async Task RunAsync(bool sendEmail = true)
     {
         var (service, http) = Services.StockPatternScanService.CreateStandalone();
         using (http)
         {
-            await service.ScanAsync(new Services.ScanOptions { WriteJson = true });
+            await service.ScanAsync(new Services.ScanOptions
+            {
+                WriteJson = true,
+                SendEmail = sendEmail
+            });
         }
     }
 

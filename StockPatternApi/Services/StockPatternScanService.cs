@@ -17,6 +17,13 @@ public sealed class ScanOptions
 
     /// <summary>When true, write StockPatternAPIBotResults.json and clear prior result artifacts.</summary>
     public bool WriteJson { get; set; }
+
+    /// <summary>
+    /// When false, persist/publish results but skip SendSummaryEmail.
+    /// Default true preserves WeekdayScan 4:30 PM ET email behavior.
+    /// Also forced false when env SPA_SKIP_EMAIL=1/true.
+    /// </summary>
+    public bool SendEmail { get; set; } = true;
 }
 
 public sealed class ScanResult
@@ -110,6 +117,10 @@ public sealed class StockPatternScanService
     public async Task<ScanResult> ScanAsync(ScanOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= new ScanOptions();
+        var skipEmailEnv = Environment.GetEnvironmentVariable("SPA_SKIP_EMAIL");
+        if (string.Equals(skipEmailEnv, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(skipEmailEnv, "true", StringComparison.OrdinalIgnoreCase))
+            options.SendEmail = false;
         var distinct = (options.Tickers != null && options.Tickers.Count > 0)
             ? options.Tickers.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t).ToArray()
             : StockSymbols.DistinctOrdered();
@@ -237,9 +248,9 @@ public sealed class StockPatternScanService
             {
                 generatedAt = DateTime.Now,
                 source = "StockPatternAPIBot via Yahoo Finance chart API (not Financial Modeling Prep)",
-                pattern = "Falling Wedge (washout-reclaim quality + breakout vol>=1.5xMA + actionable window + failed-break; freefall rejected)",
+                pattern = "Falling Wedge (washout-reclaim quality + breakout vol>=1.5xMA + actionable window + failed-break; PDF washout-reclaim / freefall-under-mid rejected)",
                 interval = "30m",
-                mode = $"as-of last {AsOfSessionCount} sessions; publish held Breakouts (incl RR soft) + A+/Good forming (R:R>={FormingMinRewardToRisk}, last {FormingMaxAgeSessions} sessions); rank Breakouts then Date then R:R; top {PublishCap}",
+                mode = $"as-of last {AsOfSessionCount} sessions; publish held Breakouts (R:R>={FormingMinRewardToRisk}, no RR soft) + A+/Good forming (R:R>={FormingMinRewardToRisk}, last {FormingMaxAgeSessions} sessions); rank Breakouts then Date then R:R; top {PublishCap}",
                 tickerCount = distinct.Length,
                 rawSetupCount = rawLatestSetups.Count,
                 setupCount = latestSetups.Count,
@@ -302,14 +313,21 @@ public sealed class StockPatternScanService
             }
         }
 
-        try
+        if (options.SendEmail)
         {
-            SendSummaryEmail(latestSetups, DateTime.Now);
-            Console.WriteLine("Email sent via EmailService to configured EMAIL_TO.");
+            try
+            {
+                SendSummaryEmail(latestSetups, DateTime.Now);
+                Console.WriteLine("Email sent via EmailService to configured EMAIL_TO.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Email failed; scan results were still written: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"Email failed; scan results were still written: {ex.Message}");
+            Console.WriteLine("Email suppressed (ScanOptions.SendEmail=false / SPA_SKIP_EMAIL). Results persisted without mailing.");
         }
 
         return new ScanResult
@@ -470,9 +488,12 @@ public sealed class StockPatternScanService
         signal.Contains("A+", StringComparison.OrdinalIgnoreCase)
         || signal.Contains("Good", StringComparison.OrdinalIgnoreCase);
 
+    internal static bool IsSoftRrSignal(string signal) =>
+        signal.Contains("RR soft", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
-    /// Publish only actionable setups: held Breakouts (incl RR soft), or fresh A+/Good forming with R:R &gt;= 2.
-    /// OK forming setups are dropped.
+    /// Publish only actionable setups: held Breakouts with R:R &gt;= 2 (no RR soft),
+    /// or fresh A+/Good forming with R:R &gt;= 2. OK forming and soft-RR breakouts are dropped.
     /// </summary>
     internal static bool PassesActionablePublishGate(
         StockSetups setup,
@@ -480,7 +501,14 @@ public sealed class StockPatternScanService
         IReadOnlySet<DateTime> latestTwoSessionDays)
     {
         if (IsBreakoutSignal(setup.Signal))
+        {
+            // Soft-RR breakouts are diagnostic only - never actionable publish / never label as A+.
+            if (IsSoftRrSignal(setup.Signal))
+                return false;
+            if (setup.RewardToRisk < FormingMinRewardToRisk)
+                return false;
             return latestFullSeriesClose >= setup.BreakoutPrice;
+        }
 
         if (IsSetupSignal(setup.Signal))
         {
@@ -568,26 +596,12 @@ public sealed class StockPatternScanService
             return false;
 
         var midpoint = (washoutLow + swingHigh) / 2.0;
-        var isBreakout = IsBreakoutSignal(setup.Signal);
-        var breakoutHold = isBreakout && latestFullSeriesClose >= setup.BreakoutPrice;
-        var reclaim = setup.Close > midpoint || (isBreakout && setup.Close >= setup.BreakoutPrice);
+        _ = latestFullSeriesClose; // call-site compatibility; PDF reclaim is midpoint-based
 
-        // Freefall: last 3 full-series session closes all lower, still below midpoint, no breakout hold.
-        var recentCloses = history
-            .GroupBy(h => h.Date.Date)
-            .OrderBy(g => g.Key)
-            .Select(g => g.OrderByDescending(x => x.Date).First().Close)
-            .TakeLast(3)
-            .ToList();
-        var freefall = recentCloses.Count == 3
-                       && recentCloses[1] < recentCloses[0]
-                       && recentCloses[2] < recentCloses[1]
-                       && setup.Close < midpoint
-                       && !breakoutHold;
-
-        if (freefall)
-            return false;
-
+        // PDF washout-reclaim (Trade Pro Elite Ch.3): price must be back above washout midpoint.
+        // Reject freefall / cliff→base / ongoing downtrend still under the mid (FSLR-class),
+        // even if labeled a soft breakout under that level. No invented indicator filters.
+        var reclaim = setup.Close > midpoint;
         return reclaim;
     }
 

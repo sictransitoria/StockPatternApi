@@ -260,12 +260,13 @@ namespace StockPatternApi.Helpers
                     if (intradayPos < 0.55)
                         continue;
 
+                    // Soft-RR breakouts (rr < MinRewardToRisk) must never carry A+/Good - diagnostic only.
                     string quality = compressionPct >= 0.25 && upperSteeper ? "A+" : compressionPct >= 0.12 ? "Good" : "OK";
                     string signal;
                     if (brokeOut && passesRr)
                         signal = $"{quality} Falling Wedge Breakout";
                     else if (brokeOut)
-                        signal = $"{quality} Falling Wedge Breakout (RR soft)";
+                        signal = "Falling Wedge Breakout (RR soft)"; // never A+/Good - soft RR is diagnostic only
                     else
                         signal = $"{quality} Falling Wedge Setup";
 

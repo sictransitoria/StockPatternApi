@@ -15,7 +15,9 @@ if (args.Contains("--stockpatternapibot-email"))
 
 if (args.Contains("--stockpatternapibot-scan"))
 {
-    await global::StockPatternApi.StockPatternAPIBotScan.RunAsync();
+    // --no-email / SPA_SKIP_EMAIL: persist scan silently (CoS verify). WeekdayScan must omit --no-email.
+    var sendEmail = !args.Contains("--no-email");
+    await global::StockPatternApi.StockPatternAPIBotScan.RunAsync(sendEmail);
     return;
 }
 
