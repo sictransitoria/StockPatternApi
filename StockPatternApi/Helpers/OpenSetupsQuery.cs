@@ -1,20 +1,21 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using StockPatternApi.Models;
 
 namespace StockPatternApi.Helpers;
 
 /// <summary>
-/// Shared watchlist filters for Setups UI and Bot digest: last 24 hours, not finalized,
+/// Shared watchlist filters for Setups UI: last 24 hours, not finalized,
 /// and not linked to an inactive FinalResults row (IsActive = 0).
-/// Soft-RR breakouts (R:R below 2.0 / "(RR soft)" label) are excluded - not actionable.
-/// Trend/SMA50 is not required so PDF-valid downtrend reversals still appear.
+/// WeekdayScan / digest email uses <see cref="IsSameCalendarDayEt"/> separately
+/// so the UI can still show overnight (prior-day) opens.
 /// </summary>
 public static class OpenSetupsQuery
 {
     public static readonly TimeSpan MaxAge = TimeSpan.FromHours(24);
 
-    /// <summary>Same floor as StockPatternScanService.MinRewardToRisk / Algorithm.MinRewardToRisk.</summary>
-    public const double MinRewardToRisk = 2.0;
+    private static readonly TimeZoneInfo Eastern =
+        TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "Eastern Standard Time" : "America/New_York");
 
     public static DateTime Cutoff(DateTime? now = null) => (now ?? DateTime.Now) - MaxAge;
 
@@ -22,33 +23,37 @@ public static class OpenSetupsQuery
         setupDate >= Cutoff(now);
 
     /// <summary>
-    /// In-memory twin of the row predicates in <see cref="Watchlist"/> (except inactive FinalResults,
-    /// which requires the DB). Keep these checks identical so scan email and UI cannot drift.
+    /// True when the setup forming bar falls on the same Eastern calendar day as <paramref name="now"/>.
+    /// Used by email digests only — not by the UI watchlist.
     /// </summary>
-    public static bool MatchesOpenCriteria(StockSetups s, DateTime? now = null)
+    public static bool IsSameCalendarDayEt(DateTime setupDate, DateTime? now = null)
     {
-        if (s.IsFinalized)
-            return false;
-        if (!IsWithinAgeWindow(s.Date, now))
-            return false;
-
-        var signal = s.Signal ?? string.Empty;
-        if (signal.Contains("RR soft", StringComparison.Ordinal))
-            return false;
-        if (signal.Contains("Breakout", StringComparison.Ordinal) && s.RewardToRisk < MinRewardToRisk)
-            return false;
-
-        return true;
+        var (start, end) = SameDayEtWindow(now);
+        return setupDate >= start && setupDate < end;
     }
 
-    /// <summary>Apply <see cref="MatchesOpenCriteria"/> to an in-memory sequence.</summary>
-    public static IEnumerable<StockSetups> FilterOpen(IEnumerable<StockSetups> setups, DateTime? now = null) =>
-        setups.Where(s => MatchesOpenCriteria(s, now));
+    /// <summary>
+    /// Eastern midnight..midnight window for "today" (inclusive start, exclusive end).
+    /// </summary>
+    public static (DateTime Start, DateTime EndExclusive) SameDayEtWindow(DateTime? now = null)
+    {
+        var instant = now ?? DateTime.Now;
+        DateTime etNow;
+        if (instant.Kind == DateTimeKind.Utc)
+            etNow = TimeZoneInfo.ConvertTimeFromUtc(instant, Eastern);
+        else if (instant.Kind == DateTimeKind.Local)
+            etNow = TimeZoneInfo.ConvertTime(instant, Eastern);
+        else
+            // Unspecified: treat as Eastern wall clock (host/SQL Express local is ET).
+            etNow = instant;
+
+        var today = etNow.Date;
+        return (today, today.AddDays(1));
+    }
 
     /// <summary>
-    /// Open setups for UI / email digest: unfinalized, within 24h, actionable R:R for breakouts,
-    /// and without an inactive FinalResults row.
-    /// IsActive lives on SPA_FinalResults (not SPA_StockSetups).
+    /// Open setups for UI: unfinalized, within 24h, and without an inactive FinalResults row.
+    /// Does NOT clamp to same calendar day — overnight opens stay visible.
     /// </summary>
     public static IQueryable<StockSetups> Watchlist(StockPatternDbContext db, DateTime? now = null)
     {
@@ -56,10 +61,6 @@ public static class OpenSetupsQuery
         return db.SPA_StockSetups
             .Where(s => !s.IsFinalized)
             .Where(s => s.Date >= cutoff)
-            // Soft-RR / sub-floor breakouts must never feed Get Stock Setups / UI watchlist
-            // (covers legacy DB rows still labeled "A+ ... (RR soft)").
-            .Where(s => !s.Signal.Contains("RR soft"))
-            .Where(s => !s.Signal.Contains("Breakout") || s.RewardToRisk >= MinRewardToRisk)
             .Where(s => !db.SPA_FinalResults.Any(f => f.StockSetupId == s.Id && !f.IsActive));
     }
 }

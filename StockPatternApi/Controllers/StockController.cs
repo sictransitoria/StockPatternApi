@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StockPatternApi.Helpers;
 using StockPatternApi.Models;
@@ -48,7 +48,7 @@ namespace StockPatternApi.Controllers
         {
             try
             {
-                // Shared filters: within 24h + exclude inactive FinalResults (IsActive=0).
+                // Shared filters: same Eastern calendar day + exclude inactive FinalResults (IsActive=0).
                 var setups = OpenSetupsQuery.Watchlist(dbContext)
                     .OrderByDescending(s => s.Date)
                     .ThenByDescending(s => s.RewardToRisk)

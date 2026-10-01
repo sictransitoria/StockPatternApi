@@ -1,4 +1,4 @@
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -393,6 +393,8 @@ public sealed class StockPatternScanService
             .OrderByDescending(s => s.Date)
             .ThenByDescending(s => s.RewardToRisk)
             .ToListAsync(cancellationToken);
+        // EMAIL path: same Eastern calendar day only (Watchlist itself stays 24h for UI).
+        setups = setups.Where(s => OpenSetupsQuery.IsSameCalendarDayEt(s.Date)).ToList();
         Console.WriteLine($"Open unfinalized setups: {setups.Count}");
         foreach (var s in setups)
             Console.WriteLine($"  {s.Ticker} {s.Date:u} {s.Signal} R:R={s.RewardToRisk}");
@@ -474,6 +476,8 @@ public sealed class StockPatternScanService
 
     private void SendSummaryEmail(IEnumerable<StockSetups> setups, DateTime generatedAt)
     {
+        // EMAIL only: same Eastern calendar day forming bars (UI Watchlist stays rolling 24h).
+        setups = setups.Where(s => OpenSetupsQuery.IsSameCalendarDayEt(s.Date, generatedAt));
         var orderedSetups = RankAndCapPublished(setups, PublishCap);
         _email.SendSetupsDigest(orderedSetups, generatedAt);
     }
@@ -599,7 +603,7 @@ public sealed class StockPatternScanService
         _ = latestFullSeriesClose; // call-site compatibility; PDF reclaim is midpoint-based
 
         // PDF washout-reclaim (Trade Pro Elite Ch.3): price must be back above washout midpoint.
-        // Reject freefall / cliff→base / ongoing downtrend still under the mid (FSLR-class),
+        // Reject freefall / cliffâ†’base / ongoing downtrend still under the mid (FSLR-class),
         // even if labeled a soft breakout under that level. No invented indicator filters.
         var reclaim = setup.Close > midpoint;
         return reclaim;
